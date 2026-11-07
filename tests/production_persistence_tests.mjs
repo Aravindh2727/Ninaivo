@@ -72,7 +72,7 @@ assert(workspaceServiceJs.includes('cloudWorkspaces.length > 0'), 'Cloud workspa
 console.log('\n--- Test Suite 3: User Preferences Cloud Persistence ---');
 
 const userServiceJs = fs.readFileSync(path.join(rootDir, 'src', 'firebase', 'userService.js'), 'utf8');
-assert(userServiceJs.includes('theme: updates.preferences.theme'), 'Syncs updated theme token directly to localStorage and DOM');
+assert(userServiceJs.includes('updates.preferences?.theme'), 'Syncs updated theme token directly to localStorage and DOM');
 assert(userServiceJs.includes('preferences:'), 'Maintains preferences document schema in Cloud Firestore');
 assert(userServiceJs.includes('{ merge: true }'), 'Uses merge setDoc to prevent overwriting existing user documents');
 

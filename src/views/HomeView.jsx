@@ -166,7 +166,7 @@ export function RecentActivityItem({ entry, onNavigate }) {
           minWidth: 0,
           maxWidth: '100%'
         }}>
-          {title || entry.title || 'Field irrigation completed'}
+          {title || entry.title || t('untitledNote') || 'Untitled Note'}
         </h4>
 
         {/* Description */}

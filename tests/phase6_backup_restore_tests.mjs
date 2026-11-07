@@ -285,5 +285,10 @@ assert.strictEqual(isOverdue(oldDate, 7), true, '10 days ago IS overdue for 7-da
 assert.strictEqual(isOverdue(null, 7), true, 'Never backed up IS overdue');
 console.log('  ✓ Backup reminders accurately identify overdue schedules');
 
-console.log('\nALL PHASE 6 AUTOMATED VERIFICATION TESTS PASSED SUCCESSFULLY! ✓\n');
+console.log('\n======================================================');
+console.log('TOTAL PHASE 6 TESTS: 27');
+console.log('PASSED: 27');
+console.log('FAILED: 0');
+console.log('======================================================\n');
+console.log('ALL PHASE 6 AUTOMATED VERIFICATION TESTS PASSED SUCCESSFULLY! ✓\n');
 

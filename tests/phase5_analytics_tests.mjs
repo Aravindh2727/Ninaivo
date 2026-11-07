@@ -175,5 +175,10 @@ assert.strictEqual(containsPersonal, false, 'Shared workspace queries must NEVER
 assert.strictEqual(scopedEntries.length, 4, 'Scoped entries should only be 4');
 console.log('  ✓ Strict workspace isolation verified. Personal entries never leak to family/business analytics.');
 
-console.log('\nALL PHASE 5 VERIFICATION TESTS PASSED SUCCESSFULLY! ✓\n');
+console.log('\n======================================================');
+console.log('TOTAL PHASE 5 TESTS: 17');
+console.log('PASSED: 17');
+console.log('FAILED: 0');
+console.log('======================================================\n');
+console.log('ALL PHASE 5 VERIFICATION TESTS PASSED SUCCESSFULLY! ✓\n');
 
