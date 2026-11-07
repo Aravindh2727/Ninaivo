@@ -23,7 +23,7 @@ export default function NinaivoLogo({
 }) {
   const { t } = useLanguage();
 
-  // Dynamic Theme Detection (props -> DOM attribute -> localStorage -> default 'dark')
+  // Dynamic Theme Detection (props -> DOM attribute -> localStorage -> default 'light')
   const [currentTheme, setCurrentTheme] = useState(() => {
     if (themeProp) return themeProp;
     if (typeof document !== 'undefined') {
@@ -31,9 +31,9 @@ export default function NinaivoLogo({
       if (attr) return attr;
     }
     if (typeof localStorage !== 'undefined') {
-      return localStorage.getItem('ninaivo_theme') || localStorage.getItem('pdt_theme') || 'dark';
+      return localStorage.getItem('ninaivo_theme') || localStorage.getItem('pdt_theme') || 'light';
     }
-    return 'dark';
+    return 'light';
   });
 
   useEffect(() => {

@@ -65,9 +65,9 @@ function AppContent() {
 
   const effectiveUser = currentUser || demoUserSession;
 
-  // Theme state (Dark / Light)
+  // Theme state (Dark / Light) - Default to 'light' (Nature Fresh)
   const [theme, setTheme] = useState(() => {
-    return localStorage.getItem('pdt_theme') || 'dark';
+    return localStorage.getItem('ninaivo_theme') || localStorage.getItem('pdt_theme') || 'light';
   });
 
   // Active navigation tab
@@ -111,6 +111,7 @@ function AppContent() {
   // Sync theme attribute to document root
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('ninaivo_theme', theme);
     localStorage.setItem('pdt_theme', theme);
   }, [theme]);
 
