@@ -86,30 +86,47 @@ export function getDefaultStarterWorkspaces(uid, ownerName = 'Diary Owner') {
 }
 
 /**
- * Get all workspaces owned by the user
+ * Get all workspaces owned by or shared with the user
  */
 export async function getWorkspacesForUser(uid, ownerName) {
   if (!uid) return [];
 
   const localCacheKey = `pdt_workspaces_${uid}`;
-  const cached = localStorage.getItem(localCacheKey);
-  let workspaces = cached ? JSON.parse(cached) : [];
 
+  // 1. Authoritative Cloud Firestore read when online and authenticated
   if (isFirebaseConfigured && auth.currentUser && auth.currentUser.uid === uid) {
     try {
-      const q = query(
+      // Query workspaces owned by user
+      const qOwner = query(
         collection(db, WORKSPACES_COLLECTION),
         where('ownerUid', '==', uid)
       );
-      const snapshot = await getDocs(q);
+      // Query shared workspaces where user is an active member
+      const qMember = query(
+        collection(db, WORKSPACES_COLLECTION),
+        where('members', 'array-contains', uid)
+      );
 
-      if (!snapshot.empty) {
-        workspaces = snapshot.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        }));
-        localStorage.setItem(localCacheKey, JSON.stringify(workspaces));
-        return workspaces;
+      const [ownerSnap, memberSnap] = await Promise.all([
+        getDocs(qOwner).catch(() => ({ docs: [], empty: true })),
+        getDocs(qMember).catch(() => ({ docs: [], empty: true }))
+      ]);
+
+      const wsMap = new Map();
+      [...ownerSnap.docs, ...memberSnap.docs].forEach(docSnap => {
+        if (!wsMap.has(docSnap.id)) {
+          wsMap.set(docSnap.id, {
+            id: docSnap.id,
+            ...docSnap.data()
+          });
+        }
+      });
+
+      const cloudWorkspaces = Array.from(wsMap.values());
+
+      if (cloudWorkspaces.length > 0) {
+        localStorage.setItem(localCacheKey, JSON.stringify(cloudWorkspaces));
+        return cloudWorkspaces;
       }
     } catch (err) {
       if (err?.code !== 'permission-denied') {
@@ -118,12 +135,16 @@ export async function getWorkspacesForUser(uid, ownerName) {
     }
   }
 
-  // If no workspaces exist yet in cloud or cache, seed initial 3 default workspaces
+  // 2. Offline / local fallback
+  const cached = localStorage.getItem(localCacheKey);
+  let workspaces = cached ? JSON.parse(cached) : [];
+
+  // 3. If brand new user with 0 workspaces in cloud and cache, initialize 3 default starter workspaces
   if (workspaces.length === 0) {
     workspaces = getDefaultStarterWorkspaces(uid, ownerName);
     localStorage.setItem(localCacheKey, JSON.stringify(workspaces));
 
-    // Try seeding to Firestore ONLY if authenticated with valid user id
+    // Seed to Cloud Firestore for authenticated user
     if (isFirebaseConfigured && auth.currentUser && auth.currentUser.uid === uid) {
       for (const ws of workspaces) {
         try {
@@ -132,7 +153,7 @@ export async function getWorkspacesForUser(uid, ownerName) {
             ...ws,
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp()
-          });
+          }, { merge: true });
         } catch (seedErr) {
           if (seedErr?.code !== 'permission-denied') {
             console.warn('Could not seed starter workspace to Firestore:', seedErr.message);

@@ -51,8 +51,8 @@ import {
 const WorkspaceContext = createContext(null);
 
 export function WorkspaceProvider({ children }) {
-  const { currentUser } = useAuth();
-  const effectiveUid = currentUser?.uid || 'demo-user-42';
+  const { currentUser, userProfile, loading: authLoading, updateUserPreferences } = useAuth();
+  const effectiveUid = currentUser?.uid || null;
 
   const [workspaces, setWorkspaces] = useState([]);
   const [currentWorkspace, setCurrentWorkspaceState] = useState(null);
@@ -83,21 +83,43 @@ export function WorkspaceProvider({ children }) {
     }
   }, []);
 
-  // Load workspaces when user changes
+  // Load workspaces strictly after auth state is confirmed
   useEffect(() => {
+    // Wait for Firebase Auth session resolution before attempting any workspace operations
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
+    if (!currentUser?.uid) {
+      setWorkspaces([]);
+      setCurrentWorkspaceState(null);
+      setEntries([]);
+      setCategories([]);
+      setMembers([]);
+      setInvitations([]);
+      setJoinRequests([]);
+      setActivityLogs([]);
+      setNotifications([]);
+      setLoading(false);
+      return;
+    }
+
     let isMounted = true;
 
     async function loadWorkspaces() {
       setLoading(true);
       try {
-        const list = await getWorkspacesForUser(effectiveUid, currentUser?.displayName);
+        const list = await getWorkspacesForUser(currentUser.uid, currentUser.displayName);
         if (!isMounted) return;
 
         setWorkspaces(list);
 
-        // Retrieve last active workspace ID
-        const savedWsId = localStorage.getItem(`pdt_last_active_ws_${effectiveUid}`);
-        const found = list.find(w => w.id === savedWsId) || list[0];
+        // Retrieve last active workspace preference (cloud profile preference first, then local cache)
+        const preferredWsId = userProfile?.preferences?.lastActiveWorkspaceId;
+        const cachedWsId = localStorage.getItem(`pdt_last_active_ws_${currentUser.uid}`);
+        const targetId = preferredWsId || cachedWsId;
+        const found = list.find(w => w.id === targetId) || list[0];
         setCurrentWorkspaceState(found || null);
       } catch (err) {
         if (err?.code !== 'permission-denied') {
@@ -110,11 +132,11 @@ export function WorkspaceProvider({ children }) {
 
     loadWorkspaces();
     return () => { isMounted = false; };
-  }, [effectiveUid, currentUser?.displayName]);
+  }, [currentUser?.uid, currentUser?.displayName, authLoading, userProfile?.preferences?.lastActiveWorkspaceId]);
 
   // Load workspace-scoped data (entries, categories, members, invites, requests, activity)
   useEffect(() => {
-    if (!currentWorkspace?.id) {
+    if (!currentWorkspace?.id || !currentUser?.uid) {
       setEntries([]);
       setCategories([]);
       setMembers([]);
@@ -125,7 +147,10 @@ export function WorkspaceProvider({ children }) {
     }
 
     let isMounted = true;
-    localStorage.setItem(`pdt_last_active_ws_${effectiveUid}`, currentWorkspace.id);
+    localStorage.setItem(`pdt_last_active_ws_${currentUser.uid}`, currentWorkspace.id);
+    if (updateUserPreferences) {
+      updateUserPreferences({ lastActiveWorkspaceId: currentWorkspace.id }).catch(() => {});
+    }
 
     async function loadWorkspaceData() {
       try {

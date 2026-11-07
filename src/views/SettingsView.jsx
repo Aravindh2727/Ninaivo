@@ -29,7 +29,6 @@ import NinaivoLogo from '../components/NinaivoLogo';
 export default function SettingsView({ 
   theme, 
   onToggleTheme, 
-  onResetData, 
   onExportData, 
   onOpenExportModal,
   onNavigate,
@@ -289,17 +288,6 @@ export default function SettingsView({
               </div>
               <div>
                 <div className="settings-text-title" style={{ fontSize: '0.80rem' }}>{t('exportDiaryJson')}</div>
-              </div>
-            </div>
-          </div>
-
-          <div className="settings-row compact-settings-row" onClick={onResetData} style={{ cursor: 'pointer' }}>
-            <div className="settings-row-left">
-              <div className="settings-icon-wrap compact-settings-icon">
-                <RotateCcw size={14} style={{ color: 'var(--accent-rose)' }} />
-              </div>
-              <div>
-                <div className="settings-text-title" style={{ color: 'var(--accent-rose)', fontSize: '0.80rem' }}>{t('resetDemoData')}</div>
               </div>
             </div>
           </div>

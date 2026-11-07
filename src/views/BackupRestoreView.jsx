@@ -90,7 +90,7 @@ export default function BackupRestoreView({ onBack, showToast }) {
         currentWorkspace,
         entries,
         categories,
-        currentUser || { displayName: 'Diary User', uid: 'demo-user-42' }
+        currentUser
       );
       if (res.success) {
         showToast && showToast('Full JSON backup downloaded successfully!');
@@ -145,7 +145,7 @@ export default function BackupRestoreView({ onBack, showToast }) {
       if (restoreTarget === 'new') {
         result = await restoreIntoNewWorkspace(
           restoreValidation.parsedData,
-          currentUser || { uid: 'demo-user-42' },
+          currentUser,
           (pct) => setRestoreProgress(pct)
         );
         if (result.success && result.newWorkspace) {
@@ -156,7 +156,7 @@ export default function BackupRestoreView({ onBack, showToast }) {
           currentWorkspace.id,
           restoreValidation.parsedData,
           { duplicateStrategy },
-          currentUser || { uid: 'demo-user-42' },
+          currentUser,
           (pct) => setRestoreProgress(pct)
         );
       }
@@ -206,7 +206,7 @@ export default function BackupRestoreView({ onBack, showToast }) {
       const res = await importCsvEntries(
         currentWorkspace.id,
         toImport,
-        currentUser || { displayName: 'Diary User', uid: 'demo-user-42' }
+        currentUser
       );
       setImportResult(res);
       showToast && showToast(`${res.count} ${t('importSuccessMsg')}`);
@@ -238,7 +238,7 @@ export default function BackupRestoreView({ onBack, showToast }) {
   const handleDownloadPersonalData = () => {
     const allEntriesMap = { [currentWorkspace.id]: entries };
     exportAccountPersonalData(
-      currentUser || { uid: 'demo-user-42', email: 'user@example.com' },
+      currentUser,
       userProfile,
       workspaces,
       allEntriesMap

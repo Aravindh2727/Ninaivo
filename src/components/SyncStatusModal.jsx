@@ -66,8 +66,8 @@ export default function SyncStatusModal({ isOpen, onClose, showToast }) {
       setPending(getPendingCount());
       setLastSync(getLastSyncTime());
       setSyncFeedback(res);
-      if (res.synced > 0 || res.isDemo) {
-        showToast && showToast(res.isDemo ? (t('demoStorageSynced') || 'Device storage synchronized!') : `Synchronized ${res.synced} pending changes!`);
+      if (res.synced > 0) {
+        showToast && showToast(`Synchronized ${res.synced} pending changes!`);
       }
     } catch (err) {
       setSyncFeedback({ failed: 1, message: err.message });
@@ -225,7 +225,7 @@ export default function SyncStatusModal({ isOpen, onClose, showToast }) {
               <span>
                 {syncFeedback.failed > 0
                   ? `Sync error: ${syncFeedback.message || 'Some operations failed'}`
-                  : (syncFeedback.isDemo ? (syncFeedback.message || t('demoStorageSynced') || 'Device storage synchronized!') : `Successfully synced ${syncFeedback.synced} operations!`)}
+                  : (syncFeedback.message || `Successfully synced ${syncFeedback.synced} operations!`)}
               </span>
             </div>
           )}

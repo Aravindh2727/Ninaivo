@@ -88,10 +88,10 @@ export async function getWorkspaceActivityLogs(workspaceId) {
   if (!workspaceId) return [];
 
   const localCacheKey = `pdt_activity_${workspaceId}`;
-  const cached = localStorage.getItem(localCacheKey);
-  let logs = cached ? JSON.parse(cached) : null;
+  let logs = null;
 
-  if (logs === null && isFirebaseConfigured && auth?.currentUser) {
+  // 1. Authoritative Cloud Firestore read when online & authenticated
+  if (isFirebaseConfigured && auth?.currentUser) {
     try {
       const logsRef = collection(db, 'workspaces', workspaceId, 'activityLogs');
       const q = query(logsRef, orderBy('timestamp', 'desc'));
@@ -112,11 +112,9 @@ export async function getWorkspaceActivityLogs(workspaceId) {
     }
   }
 
-  if (!logs) {
-    logs = [];
-    localStorage.setItem(localCacheKey, JSON.stringify(logs));
-  }
-
+  // 2. Local fallback
+  const cached = localStorage.getItem(localCacheKey);
+  logs = cached ? JSON.parse(cached) : [];
   return logs;
 }
 

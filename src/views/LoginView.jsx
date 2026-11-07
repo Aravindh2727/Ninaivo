@@ -16,7 +16,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { formatAuthError } from '../firebase/authService';
 import NinaivoLogo from '../components/NinaivoLogo';
 
-export default function LoginView({ onSwitchToRegister, onSwitchToForgotPassword, onExploreDemo }) {
+export default function LoginView({ onSwitchToRegister, onSwitchToForgotPassword }) {
   const { login, isConfigured } = useAuth();
   const { t } = useLanguage();
   const [email, setEmail] = useState('');
@@ -75,17 +75,6 @@ export default function LoginView({ onSwitchToRegister, onSwitchToForgotPassword
               <span>
                 {t('firebaseConfigPendingDesc')}
               </span>
-              <div style={{ marginTop: '8px' }}>
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  style={{ padding: '6px 10px', fontSize: '0.72rem' }}
-                  onClick={onExploreDemo}
-                >
-                  <Sparkles size={13} style={{ color: 'var(--accent-amber)' }} />
-                  {t('enterLocalDemo')}
-                </button>
-              </div>
             </div>
           </div>
         )}

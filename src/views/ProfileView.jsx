@@ -412,7 +412,7 @@ export default function ProfileView({ onBack, onTriggerLogout, onTriggerDeleteAc
           <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '8px', borderBottom: '1px solid var(--border-color)' }}>
             <span style={{ color: 'var(--text-muted)' }}>{t('accountUid')}</span>
             <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.72rem', color: 'var(--text-main)' }}>
-              {currentUser?.uid ? `${currentUser.uid.slice(0, 16)}...` : 'demo-user-id'}
+              {currentUser?.uid ? `${currentUser.uid.slice(0, 16)}...` : '—'}
             </span>
           </div>
 

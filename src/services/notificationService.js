@@ -66,10 +66,10 @@ export async function getUserNotifications(uid) {
   if (!uid) return [];
 
   const localKey = `pdt_notifications_${uid}`;
-  const cached = localStorage.getItem(localKey);
-  let notifs = cached ? JSON.parse(cached) : null;
+  let notifs = null;
 
-  if (notifs === null && isFirebaseConfigured && auth?.currentUser && auth.currentUser.uid === uid) {
+  // 1. Authoritative Cloud Firestore read when online & authenticated
+  if (isFirebaseConfigured && auth?.currentUser && auth.currentUser.uid === uid) {
     try {
       const notifsRef = collection(db, 'users', uid, 'notifications');
       const q = query(notifsRef, orderBy('createdAt', 'desc'));
@@ -90,11 +90,9 @@ export async function getUserNotifications(uid) {
     }
   }
 
-  if (!notifs) {
-    notifs = [];
-    localStorage.setItem(localKey, JSON.stringify(notifs));
-  }
-
+  // 2. Local fallback
+  const cached = localStorage.getItem(localKey);
+  notifs = cached ? JSON.parse(cached) : [];
   return notifs;
 }
 

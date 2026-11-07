@@ -8,9 +8,27 @@ export function LanguageProvider({ children }) {
     return localStorage.getItem('pdt_language') || 'en';
   });
 
+  // Listen for language synchronization from user profile restoration
+  useEffect(() => {
+    const handleSync = (e) => {
+      const incomingLang = e.detail?.language;
+      if (incomingLang && (incomingLang === 'en' || incomingLang === 'ta') && incomingLang !== language) {
+        setLanguageState(incomingLang);
+        localStorage.setItem('pdt_language', incomingLang);
+      }
+    };
+
+    window.addEventListener('ninaivo-sync-language', handleSync);
+    return () => window.removeEventListener('ninaivo-sync-language', handleSync);
+  }, [language]);
+
   const setLanguage = (lang) => {
+    if (lang !== 'en' && lang !== 'ta') return;
     setLanguageState(lang);
     localStorage.setItem('pdt_language', lang);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('ninaivo-language-changed', { detail: { language: lang } }));
+    }
   };
 
   const t = (key) => {
@@ -38,4 +56,3 @@ export function useLanguage() {
   }
   return context;
 }
-

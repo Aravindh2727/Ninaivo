@@ -194,10 +194,9 @@ export async function getWorkspaceInvitations(workspaceId) {
   if (!workspaceId) return [];
 
   const localKey = `pdt_invitations_${workspaceId}`;
-  const cached = localStorage.getItem(localKey);
-  let invitations = cached ? JSON.parse(cached) : null;
+  let invitations = null;
 
-  if (invitations === null && isFirebaseConfigured && auth?.currentUser) {
+  if (isFirebaseConfigured && auth?.currentUser) {
     try {
       const invsRef = collection(db, 'workspaces', workspaceId, 'invitations');
       const snapshot = await getDocs(invsRef);
@@ -216,8 +215,8 @@ export async function getWorkspaceInvitations(workspaceId) {
   }
 
   if (!invitations) {
-    invitations = [];
-    localStorage.setItem(localKey, JSON.stringify(invitations));
+    const cached = localStorage.getItem(localKey);
+    invitations = cached ? JSON.parse(cached) : [];
   }
 
   // Auto-mark expired invitations
@@ -310,10 +309,9 @@ export async function getWorkspaceJoinRequests(workspaceId) {
   if (!workspaceId) return [];
 
   const localKey = `pdt_join_requests_${workspaceId}`;
-  const cached = localStorage.getItem(localKey);
-  let requests = cached ? JSON.parse(cached) : null;
+  let requests = null;
 
-  if (requests === null && isFirebaseConfigured && auth?.currentUser) {
+  if (isFirebaseConfigured && auth?.currentUser) {
     try {
       const reqsRef = collection(db, 'workspaces', workspaceId, 'joinRequests');
       const snapshot = await getDocs(reqsRef);
@@ -332,8 +330,8 @@ export async function getWorkspaceJoinRequests(workspaceId) {
   }
 
   if (!requests) {
-    requests = [];
-    localStorage.setItem(localKey, JSON.stringify(requests));
+    const cached = localStorage.getItem(localKey);
+    requests = cached ? JSON.parse(cached) : [];
   }
 
   return requests;

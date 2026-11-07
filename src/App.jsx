@@ -44,7 +44,14 @@ function ViewFallback() {
 }
 
 function AppContent() {
-  const { currentUser, userProfile, loading: authLoading, logout, deleteAccount } = useAuth();
+  const { 
+    currentUser, 
+    userProfile, 
+    loading: authLoading, 
+    logout, 
+    deleteAccount, 
+    updateUserPreferences 
+  } = useAuth();
   const { 
     currentWorkspace, 
     workspaces, 
@@ -57,18 +64,39 @@ function AppContent() {
   // Auth screen state (for unauthenticated visitors)
   const [authView, setAuthView] = useState('login'); // 'login' | 'register' | 'forgot_password'
 
-  // Demo session state for instant local testing if no network or prior to signup
-  const [demoUserSession, setDemoUserSession] = useState(() => {
-    const saved = localStorage.getItem('pdt_demo_session');
-    return saved ? JSON.parse(saved) : null;
-  });
-
-  const effectiveUser = currentUser || demoUserSession;
+  const effectiveUser = currentUser;
 
   // Theme state (Dark / Light) - Default to 'light' (Nature Fresh)
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('ninaivo_theme') || localStorage.getItem('pdt_theme') || 'light';
   });
+
+  // Sync theme with cloud userProfile preference upon initial session restoration
+  useEffect(() => {
+    if (userProfile?.preferences?.theme) {
+      const preferred = userProfile.preferences.theme;
+      if (preferred === 'light' || preferred === 'dark') {
+        setTheme(preferred);
+      }
+    }
+    if (userProfile?.preferences?.language) {
+      window.dispatchEvent(new CustomEvent('ninaivo-sync-language', { 
+        detail: { language: userProfile.preferences.language } 
+      }));
+    }
+  }, [userProfile?.preferences?.theme, userProfile?.preferences?.language]);
+
+  // Listen for language changes and persist to cloud profile
+  useEffect(() => {
+    const handleLangChange = (e) => {
+      const newLang = e.detail?.language;
+      if (newLang && currentUser && updateUserPreferences) {
+        updateUserPreferences({ language: newLang }).catch(() => {});
+      }
+    };
+    window.addEventListener('ninaivo-language-changed', handleLangChange);
+    return () => window.removeEventListener('ninaivo-language-changed', handleLangChange);
+  }, [currentUser, updateUserPreferences]);
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'diary' | 'calendar' | 'analytics' | 'gallery' | 'add' | 'members' | 'workspaces' | 'settings' | 'profile'
@@ -119,25 +147,11 @@ function AppContent() {
     setTheme(prev => {
       const next = prev === 'dark' ? 'light' : 'dark';
       showToast(next === 'dark' ? 'Forest Night (Dark Mode)' : 'Nature Fresh (Light Mode)');
+      if (currentUser && updateUserPreferences) {
+        updateUserPreferences({ theme: next }).catch(() => {});
+      }
       return next;
     });
-  };
-
-  // Enable demo mode session
-  const handleExploreDemo = () => {
-    const demoUser = {
-      uid: 'demo-user-42',
-      email: 'aravindh@example.com',
-      displayName: 'Aravindh',
-      photoURL: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
-      metadata: {
-        creationTime: new Date(Date.now() - 14 * 86400000).toISOString(),
-        lastSignInTime: new Date().toISOString()
-      }
-    };
-    setDemoUserSession(demoUser);
-    localStorage.setItem('pdt_demo_session', JSON.stringify(demoUser));
-    showToast('Logged into Workspace in Demo Mode!');
   };
 
   // Handle Logout Confirmation
@@ -146,8 +160,6 @@ function AppContent() {
       if (currentUser) {
         await logout();
       }
-      setDemoUserSession(null);
-      localStorage.removeItem('pdt_demo_session');
       setShowLogoutModal(false);
       setActiveTab('home');
       showToast('Signed out successfully.');
@@ -161,24 +173,9 @@ function AppContent() {
     if (currentUser) {
       await deleteAccount(currentPassword);
     }
-    setDemoUserSession(null);
-    localStorage.removeItem('pdt_demo_session');
     setShowDeleteModal(false);
     setActiveTab('home');
     showToast('Your account and profile have been removed.');
-  };
-
-  const handleResetData = () => {
-    if (window.confirm('Reset all tracker workspaces and diary entries to default initial state?')) {
-      const uid = effectiveUser?.uid || 'demo-user-42';
-      localStorage.removeItem(`pdt_workspaces_${uid}`);
-      localStorage.removeItem(`pdt_last_active_ws_${uid}`);
-      localStorage.removeItem('pdt_project');
-      localStorage.removeItem('pdt_members');
-      localStorage.removeItem('pdt_entries');
-      showToast('Workspaces reset to defaults.');
-      window.location.reload();
-    }
   };
 
   const handleExportData = () => {
@@ -244,7 +241,6 @@ function AppContent() {
             theme={theme}
             onSwitchToRegister={() => setAuthView('register')}
             onSwitchToForgotPassword={() => setAuthView('forgot_password')}
-            onExploreDemo={handleExploreDemo}
           />
         )}
 
@@ -252,7 +248,6 @@ function AppContent() {
           <RegisterView
             theme={theme}
             onSwitchToLogin={() => setAuthView('login')}
-            onExploreDemo={handleExploreDemo}
           />
         )}
 
@@ -372,7 +367,6 @@ function AppContent() {
             <SettingsView
               theme={theme}
               onToggleTheme={toggleTheme}
-              onResetData={handleResetData}
               onExportData={handleExportData}
               onOpenExportModal={() => setShowExportModal(true)}
               onNavigate={(tab) => setActiveTab(tab)}

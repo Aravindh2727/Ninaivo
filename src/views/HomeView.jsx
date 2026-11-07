@@ -283,8 +283,8 @@ export default function HomeView({
   const userName = userProfile?.displayName || currentUser?.displayName || 'Aravindh';
   const wsType = currentWorkspace?.type || WORKSPACE_MODES.PERSONAL;
 
-  // Real data metrics
-  const totalEntries = entries?.length || 45;
+  // Real data metrics - strictly authentic counts from Cloud Firestore
+  const totalEntries = (entries || []).length;
   const todayDateStr = new Date().toISOString().split('T')[0];
   const todayCount = (entries || []).filter(e => {
     if (!e.date && !e.createdAt) return false;
@@ -295,29 +295,20 @@ export default function HomeView({
   const totalPhotos = (entries || []).reduce((acc, e) => {
     const photos = (e.attachments || []).filter(a => a.type !== 'audio');
     return acc + photos.length;
-  }, 0) || 28;
+  }, 0);
 
   // Workspaces list
   const personalWs = (workspaces || []).find(w => w.type === WORKSPACE_MODES.PERSONAL);
   const familyWs = (workspaces || []).find(w => w.type === WORKSPACE_MODES.FAMILY);
   const businessWs = (workspaces || []).find(w => w.type === WORKSPACE_MODES.BUSINESS);
 
-  const personalMembers = personalWs?.memberUids?.length || 1;
-  const familyMembers = familyWs?.memberUids?.length || 3;
-  const businessMembers = businessWs?.memberUids?.length || 2;
-  const currentMembersCount = currentWorkspace?.memberUids?.length || (wsType === 'family' ? 3 : wsType === 'business' ? 2 : 1);
+  const personalMembers = personalWs?.members?.length || 1;
+  const familyMembers = familyWs?.members?.length || 1;
+  const businessMembers = businessWs?.members?.length || 1;
+  const currentMembersCount = currentWorkspace?.members?.length || 1;
 
-  // Recent entries (limit to 3)
-  const recentEntriesList = entries && entries.length > 0 ? entries.slice(0, 3) : [
-    {
-      id: 'demo-1',
-      title: 'Field irrigation completed',
-      content: 'Watered the fields this morning...',
-      entryType: 'Agriculture',
-      createdAt: '2026-11-05T09:00:00Z',
-      attachments: [{ url: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=400&auto=format&fit=crop&q=80', type: 'image' }]
-    }
-  ];
+  // Recent entries (limit to 3 real user entries)
+  const recentEntriesList = (entries || []).slice(0, 3);
 
   return (
     <div className="home-dashboard-view" style={{ width: '100%', boxSizing: 'border-box' }}>
@@ -887,13 +878,36 @@ export default function HomeView({
 
         {/* Horizontal Diary Card List */}
         <div style={{ width: '100%' }}>
-          {recentEntriesList.map((entry) => (
-            <RecentActivityItem
-              key={entry.id}
-              entry={entry}
-              onNavigate={onNavigate}
-            />
-          ))}
+          {recentEntriesList.length > 0 ? (
+            recentEntriesList.map((entry) => (
+              <RecentActivityItem
+                key={entry.id}
+                entry={entry}
+                onNavigate={onNavigate}
+              />
+            ))
+          ) : (
+            <div 
+              className="card"
+              onClick={() => onNavigate('add')}
+              style={{
+                padding: '16px',
+                textAlign: 'center',
+                cursor: 'pointer',
+                borderRadius: '16px',
+                border: '1px dashed var(--border-color)',
+                background: 'var(--bg-card)'
+              }}
+            >
+              <BookOpen size={20} style={{ color: 'var(--primary)', margin: '0 auto 6px auto', display: 'block' }} />
+              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)' }}>
+                {t('noEntriesYet') || 'No diary entries yet'}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                {t('addFirstEntryPrompt') || 'Tap here to capture your first memory or reflection.'}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

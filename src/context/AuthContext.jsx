@@ -84,6 +84,14 @@ export function AuthProvider({ children }) {
     return updated;
   };
 
+  const updateUserPreferences = async (preferenceUpdates) => {
+    if (!currentUser) return;
+    const currentPrefs = userProfile?.preferences || {};
+    const mergedPrefs = { ...currentPrefs, ...preferenceUpdates };
+    await updateUserProfileData({ preferences: mergedPrefs });
+    return mergedPrefs;
+  };
+
   const updateUserEmail = async (newEmail, currentPassword) => {
     if (!currentUser) throw new Error('No user is currently authenticated.');
     await changeEmail(currentUser, currentPassword, newEmail);
@@ -118,6 +126,7 @@ export function AuthProvider({ children }) {
     logout,
     resetPassword,
     updateUserProfileData,
+    updateUserPreferences,
     updateUserEmail,
     updateUserPassword,
     deleteAccount,

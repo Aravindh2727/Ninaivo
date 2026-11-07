@@ -34,10 +34,56 @@ import {
 
 import {
   getEntryDisplayContent,
-  getSampleEntriesForWorkspace,
   createDiaryEntry,
   updateDiaryEntry
 } from '../src/services/entryService.js';
+
+// Test Fixtures for Sample Translation Validation
+function getSampleEntriesForWorkspace(workspaceId, type) {
+  if (type === 'personal') {
+    return [
+      {
+        id: 'entry-per-1',
+        title: 'Morning 5K Jog & Health Reflections',
+        translations: { ta: { title: 'காலை 5 கிமீ நடைப்பயிற்சி மற்றும் ஆரோக்கியம்' } }
+      },
+      {
+        id: 'entry-per-2',
+        title: 'Reading "Atomic Habits" — Chapter 4 Insights',
+        translations: { ta: { title: '"அணு பழக்கங்கள்" வாசிப்பு — அத்தியாயம் 4 நுண்ணறிவு' } }
+      }
+    ];
+  }
+  if (type === 'family') {
+    return [
+      {
+        id: 'entry-fam-1',
+        title: 'Paddy Sowing & Irrigation Canal Maintenance',
+        translations: { ta: { title: 'விதைப்பு மற்றும் பாசன கால்வாய் பராமரிப்பு' } }
+      },
+      {
+        id: 'entry-fam-2',
+        title: 'குடும்ப இரவு உணவு மற்றும் அறிவியல் திட்டம்',
+        translations: { en: { title: 'Family Dinner & School Science Project Discussion' } }
+      }
+    ];
+  }
+  if (type === 'business') {
+    return [
+      {
+        id: 'entry-biz-1',
+        title: 'Commercial Wholesale Grain Settlement Received',
+        translations: { ta: { title: 'வணிக மொத்த தானிய தீர்வு பெறப்பட்டது' } }
+      },
+      {
+        id: 'entry-biz-2',
+        title: 'Quarterly Logistics & Freight Advance Paid',
+        translations: { ta: { title: 'காலாண்டு தளவாடங்கள் மற்றும் போக்குவரத்து முன்பணம்' } }
+      }
+    ];
+  }
+  return [];
+}
 
 // Setup Mock LocalStorage
 const mockStorage = new Map();

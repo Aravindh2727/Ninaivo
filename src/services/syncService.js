@@ -119,38 +119,18 @@ export async function syncPendingMutations(user) {
   }
 
   const activeUser = user || auth?.currentUser;
-  const isDemoSession = !activeUser && Boolean(localStorage.getItem('pdt_demo_session'));
 
-  // Scenario A: Demo session or unauthenticated visitor
-  if (isDemoSession || !isFirebaseConfigured || !activeUser) {
-    // Reconcile and commit all queued operations to local device storage
-    const successfulIds = queue.map(op => op.id);
-    localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify([]));
-    const lastSyncIso = recordLastSyncTime();
-
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('pdt-sync-status', { 
-        detail: { 
-          pendingCount: 0, 
-          isOnline: isOnline(),
-          lastSync: lastSyncIso 
-        } 
-      }));
-    }
-
+  // If no user is authenticated yet, wait for session restoration before draining queue
+  if (!activeUser || !isFirebaseConfigured) {
     return {
-      synced: successfulIds.length,
-      conflictsPreserved: 0,
+      synced: 0,
       failed: 0,
-      remaining: 0,
-      isDemo: true,
-      message: isDemoSession 
-        ? 'Device storage synchronized! Sign in to back up entries to Cloud Firestore.'
-        : 'Local storage synchronized successfully.'
+      remaining: queue.length,
+      message: 'Sign in to synchronize offline changes with Cloud Firestore.'
     };
   }
 
-  // Scenario B: Authenticated Firebase user
+  // Authenticated Firebase user synchronization
   const successfulIds = [];
   const failedOps = [];
   let conflictsPreserved = 0;

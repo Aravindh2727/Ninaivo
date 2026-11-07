@@ -41,10 +41,10 @@ export async function getWorkspaceMembers(workspaceId, ownerUid, ownerDetails = 
   if (!workspaceId) return [];
 
   const localKey = `pdt_members_${workspaceId}`;
-  const cached = localStorage.getItem(localKey);
-  let members = cached ? JSON.parse(cached) : null;
+  let members = null;
 
-  if (members === null && isFirebaseConfigured && auth?.currentUser) {
+  // 1. Authoritative Cloud Firestore read when online & authenticated
+  if (isFirebaseConfigured && auth?.currentUser) {
     try {
       const membersRef = collection(db, 'workspaces', workspaceId, 'members');
       const snapshot = await getDocs(membersRef);
@@ -60,6 +60,12 @@ export async function getWorkspaceMembers(workspaceId, ownerUid, ownerDetails = 
         console.warn('Could not fetch members from Firestore:', err.message);
       }
     }
+  }
+
+  // 2. Local cache fallback if cloud read did not return results
+  if (!members) {
+    const cached = localStorage.getItem(localKey);
+    members = cached ? JSON.parse(cached) : null;
   }
 
   // Ensure owner is included as the primary member

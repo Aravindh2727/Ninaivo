@@ -17,30 +17,30 @@ export async function getWorkspaceCategories(workspaceId) {
   if (!workspaceId) return DEFAULT_PREDEFINED_CATEGORIES.map(name => ({ id: name, name, isCustom: false }));
 
   const localCacheKey = `pdt_categories_${workspaceId}`;
-  const cached = localStorage.getItem(localCacheKey);
-  let customCategories = cached ? JSON.parse(cached) : null;
+  let customCategories = [];
 
-  if (customCategories === null && isFirebaseConfigured && auth?.currentUser) {
+  // 1. Authoritative Cloud Firestore read when online & authenticated
+  if (isFirebaseConfigured && auth?.currentUser) {
     try {
       const catRef = collection(db, 'workspaces', workspaceId, 'categories');
       const snapshot = await getDocs(catRef);
-      if (!snapshot.empty) {
-        customCategories = snapshot.docs.map(docSnap => ({
-          id: docSnap.id,
-          ...docSnap.data()
-        }));
-        localStorage.setItem(localCacheKey, JSON.stringify(customCategories));
-      }
+      customCategories = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }));
+      localStorage.setItem(localCacheKey, JSON.stringify(customCategories));
     } catch (err) {
       if (err?.code !== 'permission-denied') {
         console.warn('Could not fetch custom categories from Firestore:', err.message);
       }
+      // Fallback to local cache on error/offline
+      const cached = localStorage.getItem(localCacheKey);
+      customCategories = cached ? JSON.parse(cached) : [];
     }
-  }
-
-  if (!customCategories) {
-    customCategories = [];
-    localStorage.setItem(localCacheKey, JSON.stringify(customCategories));
+  } else {
+    // 2. Offline / local fallback
+    const cached = localStorage.getItem(localCacheKey);
+    customCategories = cached ? JSON.parse(cached) : [];
   }
 
   // Predefined default categories
