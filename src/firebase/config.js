@@ -53,15 +53,19 @@ try {
 
 export const db = firestoreDb;
 
-// Initialize Firebase Analytics safely (supported only in browser contexts)
+// Initialize Firebase Analytics optionally and safely
+// Guarded with opt-in to avoid unwanted 400 Bad Request calls to Installations API on custom domains
 export let analytics = null;
-if (typeof window !== 'undefined') {
+const enableAnalytics = metaEnv.VITE_ENABLE_FIREBASE_ANALYTICS === 'true';
+
+if (typeof window !== 'undefined' && enableAnalytics && firebaseConfig.measurementId) {
   isSupported().then((supported) => {
     if (supported) {
       analytics = getAnalytics(app);
     }
-  }).catch(() => {
-    // Analytics is non-critical (e.g. ad-blocker or private browsing)
+  }).catch((err) => {
+    // Analytics is non-critical (e.g. ad-blocker, private browsing, or API restrictions)
+    console.warn('Firebase Analytics initialization skipped:', err?.message || err);
   });
 }
 
