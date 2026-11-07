@@ -8,7 +8,10 @@ import {
 } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
-const metaEnv = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : {};
+const metaEnv = (typeof import.meta !== 'undefined' && import.meta.env) 
+  ? import.meta.env 
+  : (typeof process !== 'undefined' && process.env ? process.env : {});
+
 const envApiKey = metaEnv.VITE_FIREBASE_API_KEY?.trim();
 const envAuthDomain = metaEnv.VITE_FIREBASE_AUTH_DOMAIN?.trim();
 const envProjectId = metaEnv.VITE_FIREBASE_PROJECT_ID?.trim();
@@ -21,11 +24,12 @@ export const isFirebaseConfigured = Boolean(
   envApiKey && 
   envProjectId && 
   envApiKey !== 'your_firebase_api_key_here' && 
+  envApiKey !== 'mock-api-key-for-development' &&
   envProjectId !== 'your_project_id'
 );
 
 const firebaseConfig = {
-  apiKey: isFirebaseConfigured ? envApiKey : 'AIzaSyAFitmU1G4OoX5Sbhtv6C_vMkBP7zw5itg',
+  apiKey: envApiKey || 'mock-api-key-for-development',
   authDomain: envAuthDomain || 'diary-tracker-c888d.firebaseapp.com',
   projectId: envProjectId || 'diary-tracker-c888d',
   storageBucket: envStorageBucket || 'diary-tracker-c888d.firebasestorage.app',
