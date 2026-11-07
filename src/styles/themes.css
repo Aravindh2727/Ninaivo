@@ -1,0 +1,165 @@
+/* ==========================================================================
+   Ninaivo - Dual Theme System
+   Theme A: Nature Fresh (Light Mode)
+   Theme B: Forest Night (Dark Mode)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Default / Dark Mode: Forest Night
+   Rich forest-inspired deep green palette with vibrant natural accents
+   -------------------------------------------------------------------------- */
+:root,
+[data-theme="dark"] {
+  --theme-id: "forest-night";
+  --theme-display-name: "Forest Night";
+
+  /* Specified Suggested Palette (Theme B) */
+  --background: #102B23;
+  --surface: #17382D;
+  --surface-elevated: #264B3D;
+  --primary: #42C95A;
+  --primary-light: #8BE36C;
+  --accent-blue: #69A9FF;
+  --accent-orange: #F5AD48;
+  --accent-purple: #B99AFF;
+  --text-primary: #F4F8F1;
+  --text-secondary: #B5C8BB;
+  --border: #355447;
+
+  /* Semantic System Tokens */
+  --bg-app: #102B23;               /* Main forest background */
+  --bg-shell: #102B23;             /* Responsive shell background */
+  --bg-secondary: #17382D;         /* Secondary deep green */
+  --bg-card: #17382D;              /* Card surface */
+  --bg-card-hover: #264B3D;        /* Elevated/hover surface */
+  --bg-card-elevated: #264B3D;     /* Raised card */
+  --bg-card-subtle: #17382D;       /* Sub-card surface */
+  --bg-input: #153429;             /* Input background */
+  --border-color: #355447;         /* Forest border */
+  --border-focus: #42C95A;         /* Primary focus ring */
+
+  /* Text & Typography */
+  --text-main: #F4F8F1;            /* Crisp soft mint white */
+  --text-muted: #B5C8BB;           /* Gentle sage muted text */
+  --text-dim: #7E9687;             /* Soft subdued text */
+
+  /* Primary Actions */
+  --primary-hover: #32B348;        /* Deep leaf green hover */
+  --primary-glow: rgba(66, 201, 90, 0.28);
+  --primary-text: #0C211B;         /* High-contrast dark text on bright green */
+
+  /* Natural Forest Accents */
+  --accent-leaf: #8BE36C;          /* Bright leaf accent */
+  --accent-sky: #69A9FF;           /* Sky blue accent */
+  --accent-amber: #F5AD48;         /* Warm amber accent */
+  --accent-rose: #FF6B8B;          /* Soft rose accent */
+  --accent-cyan: #69A9FF;          /* Cyan / Sky mapping */
+  --accent-emerald: #42C95A;       /* Emerald / Green mapping */
+
+  /* Soft Tinted Chip Backgrounds */
+  --chip-green-bg: rgba(66, 201, 90, 0.16);
+  --chip-green-text: #8BE36C;
+  --chip-blue-bg: rgba(105, 169, 255, 0.16);
+  --chip-blue-text: #69A9FF;
+  --chip-amber-bg: rgba(245, 173, 72, 0.16);
+  --chip-amber-text: #F5AD48;
+  --chip-purple-bg: rgba(185, 154, 255, 0.16);
+  --chip-purple-text: #B99AFF;
+  --chip-rose-bg: rgba(255, 107, 139, 0.16);
+  --chip-rose-text: #FF85A1;
+
+  /* Shadows (Natural Forest Depth) */
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 8px -1px rgba(0, 0, 0, 0.45), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.5), 0 4px 8px -2px rgba(0, 0, 0, 0.35);
+  --shadow-nav: 0 -4px 20px rgba(8, 24, 19, 0.6);
+  --shadow-glow: 0 0 20px rgba(66, 201, 90, 0.35);
+
+  /* Gradients & Backgrounds */
+  --gradient-header-brand: linear-gradient(135deg, #42C95A 0%, #17382D 100%);
+  --gradient-welcome-hero: linear-gradient(135deg, #17382D 0%, #264B3D 100%);
+  --gradient-add-button: linear-gradient(135deg, #42C95A 0%, #168B45 100%);
+  --desktop-bg: radial-gradient(circle at 20% 20%, rgba(66, 201, 90, 0.08) 0%, transparent 60%),
+                radial-gradient(circle at 80% 80%, rgba(105, 169, 255, 0.05) 0%, transparent 60%),
+                #0A1C16;
+}
+
+/* --------------------------------------------------------------------------
+   Light Mode: Nature Fresh
+   Warm cream, natural green primary, soft pastels, white rounded cards
+   -------------------------------------------------------------------------- */
+[data-theme="light"] {
+  --theme-id: "nature-fresh";
+  --theme-display-name: "Nature Fresh";
+
+  /* Specified Suggested Palette (Theme A) */
+  --background: #F8FAF3;
+  --surface: #FFFFFF;
+  --primary: #168B45;
+  --primary-dark: #14532D;
+  --soft-green: #E5F5DF;
+  --soft-blue: #E3F0FF;
+  --soft-orange: #FFF0D9;
+  --soft-purple: #EEE9FF;
+  --text-primary: #172033;
+  --text-secondary: #64748B;
+  --border: #E7EDE7;
+
+  /* Semantic System Tokens */
+  --bg-app: #F8FAF3;               /* Warm off-white background */
+  --bg-shell: #F8FAF3;             /* Warm off-white application shell */
+  --bg-secondary: #E5F5DF;         /* Soft leaf green secondary */
+  --bg-card: #FFFFFF;              /* Crisp white rounded diary cards */
+  --bg-card-hover: #F8FAF6;        /* Subtle warm hover */
+  --bg-card-elevated: #FFFFFF;     /* Pure white elevated */
+  --bg-card-subtle: #F6FAF4;       /* Subtle card inner fill */
+  --bg-input: #FFFFFF;             /* White inputs */
+  --border-color: #E7EDE7;         /* Soft organic border */
+  --border-focus: #168B45;         /* Natural green focus ring */
+
+  /* Text & Typography */
+  --text-main: #172033;            /* Deep navy-charcoal main text */
+  --text-muted: #64748B;           /* Secondary slate text */
+  --text-dim: #94A3B8;             /* Subdued slate text */
+
+  /* Primary Actions */
+  --primary-hover: #14532D;        /* Deep green hover */
+  --primary-glow: rgba(22, 139, 69, 0.22);
+  --primary-text: #FFFFFF;         /* White text on green */
+
+  /* Natural Fresh Accents */
+  --accent-leaf: #14532D;          /* Deep green accent */
+  --accent-sky: #1E40AF;           /* Sky blue accent */
+  --accent-amber: #B45309;         /* Soft orange/amber accent */
+  --accent-purple: #6B21A8;        /* Soft purple accent */
+  --accent-rose: #BE123C;          /* Rose accent */
+  --accent-cyan: #0284C7;          /* Sky cyan */
+  --accent-emerald: #168B45;       /* Primary emerald green */
+
+  /* Soft Pastel Chip Backgrounds (Approved Palette) */
+  --chip-green-bg: #E5F5DF;        /* Soft leaf green */
+  --chip-green-text: #14532D;
+  --chip-blue-bg: #E3F0FF;         /* Soft blue */
+  --chip-blue-text: #1E40AF;
+  --chip-amber-bg: #FFF0D9;        /* Soft orange */
+  --chip-amber-text: #B45309;
+  --chip-purple-bg: #EEE9FF;       /* Soft purple */
+  --chip-purple-text: #6B21A8;
+  --chip-rose-bg: #FFE4E6;         /* Soft rose */
+  --chip-rose-text: #BE123C;
+
+  /* Shadows (Subtle, Organic) */
+  --shadow-sm: 0 1px 3px rgba(20, 83, 45, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 12px rgba(20, 83, 45, 0.06), 0 1px 3px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 12px 24px -4px rgba(20, 83, 45, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.03);
+  --shadow-nav: 0 -4px 20px rgba(20, 83, 45, 0.06);
+  --shadow-glow: 0 4px 16px rgba(22, 139, 69, 0.25);
+
+  /* Gradients & Backgrounds */
+  --gradient-header-brand: linear-gradient(135deg, #168B45 0%, #14532D 100%);
+  --gradient-welcome-hero: linear-gradient(135deg, #E5F5DF 0%, #E3F0FF 100%);
+  --gradient-add-button: linear-gradient(135deg, #168B45 0%, #14532D 100%);
+  --desktop-bg: radial-gradient(circle at 10% 15%, rgba(22, 139, 69, 0.06) 0%, transparent 50%),
+                radial-gradient(circle at 90% 85%, rgba(227, 240, 255, 0.5) 0%, transparent 60%),
+                #F8FAF3;
+}

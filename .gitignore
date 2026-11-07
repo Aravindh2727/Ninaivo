@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Production & Build outputs
+dist/
+dist-ssr/
+
+# Environment Variables & Secrets (Keep .env.example and .env.staging.example)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.production
+.env.staging
+.env.staging.local
+
+# Service account & private credentials
+*.pem
+*.key
+*.cert
+service-account*.json
+firebase-adminsdk*.json
+
+# Logs & caches
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.eslintcache
+*.log
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Temporary testing & scratch files
+tmp_chrome/
+scratch_chrome_user_data/
+*.pma

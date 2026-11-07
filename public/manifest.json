@@ -1,0 +1,56 @@
+{
+  "name": "Ninaivo",
+  "short_name": "Ninaivo",
+  "description": "Your Life. Your Memories. Your Story.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "background_color": "#14532D",
+  "theme_color": "#14532D",
+  "orientation": "portrait",
+  "categories": ["productivity", "lifestyle", "business"],
+  "icons": [
+    {
+      "src": "/icons/ninaivo_app_icon_light.png",
+      "sizes": "138x138",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/ninaivo_app_icon_dark.png",
+      "sizes": "138x138",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/ninaivo_icon_192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/ninaivo_icon_512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/ninaivo_icon_maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,180 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Base authentication check
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // User profile documents & private notifications
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      
+      match /notifications/{notifId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+
+      match /{allSubcollections=**} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    // Multi-Workspace Architecture
+    match /workspaces/{workspaceId} {
+      function getWorkspace() {
+        return get(/databases/$(database)/documents/workspaces/$(workspaceId)).data;
+      }
+
+      function isPersonal(ws) {
+        return ws.type == 'personal';
+      }
+
+      function isOwner(ws) {
+        return isAuthenticated() && ws.ownerUid == request.auth.uid;
+      }
+
+      function isMember(ws) {
+        return isAuthenticated() && (
+          ws.ownerUid == request.auth.uid ||
+          (ws.members != null && (request.auth.uid in ws.members))
+        );
+      }
+
+      function getUserRole(ws) {
+        return isOwner(ws) ? 'owner' :
+          (ws.memberRoles != null && ws.memberRoles[request.auth.uid] != null)
+            ? ws.memberRoles[request.auth.uid]
+            : 'viewer';
+      }
+
+      function canCreateEntries(ws) {
+        return isOwner(ws) || (
+          !isPersonal(ws) && isMember(ws) &&
+          (getUserRole(ws) in ['owner', 'admin', 'editor'])
+        );
+      }
+
+      function canEditEntry(ws, entryData) {
+        return isOwner(ws) || (
+          !isPersonal(ws) && isMember(ws) && (
+            getUserRole(ws) == 'admin' ||
+            (getUserRole(ws) == 'editor' && entryData.createdByUid == request.auth.uid)
+          )
+        );
+      }
+
+      function canDeleteEntry(ws, entryData) {
+        return isOwner(ws) || (
+          !isPersonal(ws) && isMember(ws) && (
+            getUserRole(ws) == 'admin' ||
+            (getUserRole(ws) == 'editor' && entryData.createdByUid == request.auth.uid)
+          )
+        );
+      }
+
+      function canManageWorkspace(ws) {
+        return isOwner(ws) || (
+          !isPersonal(ws) && isMember(ws) && getUserRole(ws) == 'admin'
+        );
+      }
+
+      function isValidActivityAction(ws, data) {
+        let action = data.action;
+        return (
+          // Administrative actions: Owner only
+          (action in ['role_changed', 'member_removed', 'workspace_deleted'] && isOwner(ws)) ||
+          // Management actions: Owner or Admin
+          (action in ['invite_created', 'invite_revoked', 'request_approved', 'request_rejected', 'settings_changed'] && canManageWorkspace(ws)) ||
+          // Content actions: Owner, Admin, or Editor
+          (action in ['entry_created', 'entry_edited', 'entry_deleted'] && canCreateEntries(ws)) ||
+          // Self-initiated member actions
+          (action in ['member_joined', 'request_submitted', 'backup_created', 'restore_completed', 'restore_failed', 'import_completed'] && isMember(ws))
+        );
+      }
+
+      // Workspace document rules
+      allow create: if isAuthenticated() && request.resource.data.ownerUid == request.auth.uid;
+      
+      // Personal is strictly owner-only; Family/Business allows active members
+      allow read: if isAuthenticated() && (
+        resource.data.ownerUid == request.auth.uid ||
+        (!isPersonal(resource.data) && (request.auth.uid in resource.data.members))
+      );
+
+      // Only owner can transfer ownership or alter member roles; admins can update basic settings
+      allow update: if isAuthenticated() && (
+        (resource.data.ownerUid == request.auth.uid && request.resource.data.ownerUid == resource.data.ownerUid) ||
+        (!isPersonal(resource.data) && isMember(resource.data) && canManageWorkspace(resource.data) &&
+         request.resource.data.ownerUid == resource.data.ownerUid &&
+         request.resource.data.memberRoles == resource.data.memberRoles &&
+         request.resource.data.members == resource.data.members)
+      );
+
+      // Only owner can delete the workspace
+      allow delete: if isAuthenticated() && resource.data.ownerUid == request.auth.uid;
+
+      // Diary entries subcollection
+      match /entries/{entryId} {
+        allow read: if isMember(getWorkspace());
+        allow create: if canCreateEntries(getWorkspace()) &&
+          request.resource.data.createdByUid == request.auth.uid;
+        allow update: if canEditEntry(getWorkspace(), resource.data);
+        allow delete: if canDeleteEntry(getWorkspace(), resource.data);
+      }
+
+      // Categories subcollection: Only Owner and Admin can manage categories (Editors cannot)
+      match /categories/{categoryId} {
+        allow read: if isMember(getWorkspace());
+        allow write: if canManageWorkspace(getWorkspace());
+      }
+
+      // Members subcollection:
+      // - Add member on accept: Owner or Admin
+      // - Change role: Owner ONLY
+      // - Remove member: Owner ONLY (or member leaving themselves)
+      match /members/{memberUid} {
+        allow read: if isMember(getWorkspace());
+        allow create: if canManageWorkspace(getWorkspace()) && 
+          request.resource.data.role != 'owner';
+        allow update: if isOwner(getWorkspace()) && 
+          request.resource.data.role != 'owner';
+        allow delete: if (isOwner(getWorkspace()) && resource.data.role != 'owner') ||
+          (isAuthenticated() && request.auth.uid == memberUid && resource.data.role != 'owner');
+      }
+
+      // Invitations subcollection (Family & Business only)
+      match /invitations/{invitationId} {
+        allow read: if canManageWorkspace(getWorkspace()) && !isPersonal(getWorkspace());
+        allow create, update, delete: if canManageWorkspace(getWorkspace()) && !isPersonal(getWorkspace());
+      }
+
+      // Join Requests subcollection (Family & Business only)
+      match /joinRequests/{requestId} {
+        allow create: if isAuthenticated() && 
+          request.resource.data.uid == request.auth.uid &&
+          !isPersonal(getWorkspace());
+        allow read: if canManageWorkspace(getWorkspace()) || 
+          (isAuthenticated() && resource.data.uid == request.auth.uid);
+        allow update: if canManageWorkspace(getWorkspace()) || 
+          (isAuthenticated() && resource.data.uid == request.auth.uid);
+        allow delete: if canManageWorkspace(getWorkspace());
+      }
+
+      // Tamper-resistant Activity Audit Logs
+      match /activityLogs/{activityId} {
+        allow read: if isMember(getWorkspace());
+        allow create: if isMember(getWorkspace()) && 
+          request.resource.data.userUid == request.auth.uid &&
+          request.resource.data.workspaceId == workspaceId &&
+          isValidActivityAction(getWorkspace(), request.resource.data);
+        allow update, delete: if false;
+      }
+    }
+
+    // Default deny for all other collection routes
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

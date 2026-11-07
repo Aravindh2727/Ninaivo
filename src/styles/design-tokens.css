@@ -1,0 +1,65 @@
+/* ==========================================================================
+   Ninaivo - Centralized Design Tokens
+   Mobile-First Natural Application System
+   ========================================================================== */
+
+:root {
+  /* Typography System */
+  --font-sans: 'Plus Jakarta Sans', 'Noto Sans Tamil', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', 'Latha', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', Menlo, monospace;
+
+  --text-xs: 0.6875rem;    /* 11px */
+  --text-sm: 0.75rem;      /* 12px */
+  --text-base: 0.875rem;   /* 14px */
+  --text-md: 0.9375rem;    /* 15px */
+  --text-lg: 1.0625rem;    /* 17px */
+  --text-xl: 1.25rem;      /* 20px */
+  --text-2xl: 1.5rem;      /* 24px */
+  --text-3xl: 1.875rem;    /* 30px */
+
+  --weight-normal: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+  --weight-extrabold: 800;
+
+  /* Spacing Scale (4px baseline) */
+  --space-2xs: 2px;
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 20px;
+  --space-2xl: 24px;
+  --space-3xl: 32px;
+
+  /* Rounded Corner Geometry */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+
+  /* App Chrome & Navigation Sizing */
+  --app-header-height: 60px;
+  --bottom-nav-height: 68px;
+  --touch-target-min: 44px;
+  --max-content-width: 980px;
+
+  /* Transitions & Easing */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-theme: 280ms ease;
+
+  /* Z-Index Hierarchy */
+  --z-base: 1;
+  --z-dropdown: 50;
+  --z-panel-backdrop: 85;
+  --z-header: 90;
+  --z-nav: 90;
+  --z-modal-backdrop: 95;
+  --z-toast: 100;
+}
+

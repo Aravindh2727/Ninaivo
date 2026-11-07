@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="ninaivoBg512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14532D" />
+      <stop offset="100%" stop-color="#168B45" />
+    </linearGradient>
+    <linearGradient id="ninaivoRibbon512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F4F8F1" />
+      <stop offset="100%" stop-color="#E5F5DF" />
+    </linearGradient>
+    <linearGradient id="ninaivoSpark512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#42C95A" />
+    </linearGradient>
+  </defs>
+  <!-- Background Squircle -->
+  <rect width="512" height="512" rx="116" fill="url(#ninaivoBg512)" />
+  <rect x="16" y="16" width="480" height="480" rx="100" fill="none" stroke="#42C95A" stroke-width="4" opacity="0.3" />
+  
+  <!-- Modern Geometric N Logo with Journal & Memory Motif -->
+  <!-- Left Pillar / Journal Spine -->
+  <rect x="122" y="117" width="58" height="278" rx="20" fill="url(#ninaivoRibbon512)" />
+  
+  <!-- Right Pillar / Journal Spine -->
+  <rect x="332" y="117" width="58" height="278" rx="20" fill="url(#ninaivoRibbon512)" />
+  
+  <!-- Dynamic Diagonal Bridge connecting the N -->
+  <path d="M122 144 L390 368 C395 373 390 395 373 395 L332 395 L122 170 Z" fill="url(#ninaivoRibbon512)" opacity="0.95" />
+  
+  <!-- Subtle Journal Line Accents on Left Pillar -->
+  <line x1="140" y1="165" x2="162" y2="165" stroke="#168B45" stroke-width="6.5" stroke-linecap="round" />
+  <line x1="140" y1="197" x2="162" y2="197" stroke="#168B45" stroke-width="6.5" stroke-linecap="round" />
+  <line x1="140" y1="229" x2="162" y2="229" stroke="#168B45" stroke-width="6.5" stroke-linecap="round" />
+
+  <!-- Memory Spark / Node at Top Right -->
+  <circle cx="361" cy="117" r="38" fill="url(#ninaivoSpark512)" />
+  <path d="M361 90 L369 109 L388 117 L369 125 L361 144 L353 125 L334 117 L353 109 Z" fill="#FFFFFF" />
+</svg>

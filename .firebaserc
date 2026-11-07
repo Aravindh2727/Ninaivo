@@ -1,0 +1,7 @@
+{
+  "projects": {
+    "default": "diary-tracker-c888d",
+    "production": "diary-tracker-c888d",
+    "staging": "diary-tracker-staging"
+  }
+}

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="ninaivoBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#14532D" />
+      <stop offset="100%" stop-color="#168B45" />
+    </linearGradient>
+    <linearGradient id="ninaivoRibbon" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F4F8F1" />
+      <stop offset="100%" stop-color="#E5F5DF" />
+    </linearGradient>
+    <linearGradient id="ninaivoSpark" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#42C95A" />
+    </linearGradient>
+  </defs>
+  <!-- Background Squircle -->
+  <rect width="192" height="192" rx="44" fill="url(#ninaivoBg)" />
+  <rect x="6" y="6" width="180" height="180" rx="38" fill="none" stroke="#42C95A" stroke-width="1.5" opacity="0.3" />
+  
+  <!-- Modern Geometric N Logo with Journal & Memory Motif -->
+  <!-- Left Pillar / Journal Spine -->
+  <rect x="46" y="44" width="22" height="104" rx="8" fill="url(#ninaivoRibbon)" />
+  
+  <!-- Right Pillar / Journal Spine -->
+  <rect x="124" y="44" width="22" height="104" rx="8" fill="url(#ninaivoRibbon)" />
+  
+  <!-- Dynamic Diagonal Bridge connecting the N -->
+  <path d="M46 54 L146 138 C148 140 146 148 140 148 L124 148 L46 64 Z" fill="url(#ninaivoRibbon)" opacity="0.95" />
+  
+  <!-- Subtle Journal Line Accents on Left Pillar -->
+  <line x1="53" y1="62" x2="61" y2="62" stroke="#168B45" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="53" y1="74" x2="61" y2="74" stroke="#168B45" stroke-width="2.5" stroke-linecap="round" />
+  <line x1="53" y1="86" x2="61" y2="86" stroke="#168B45" stroke-width="2.5" stroke-linecap="round" />
+
+  <!-- Memory Spark / Node at Top Right -->
+  <circle cx="135" cy="44" r="14" fill="url(#ninaivoSpark)" />
+  <path d="M135 34 L138 41 L145 44 L138 47 L135 54 L132 47 L125 44 L132 41 Z" fill="#FFFFFF" />
+</svg>
