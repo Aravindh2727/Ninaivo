@@ -7,7 +7,7 @@ import {
   orderBy, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth, isFirebaseConfigured } from '../firebase/config';
+import { db, auth, isFirebaseConfigured } from '../firebase/config.js';
 
 export const ACTIVITY_ACTIONS = {
   ENTRY_CREATED: 'entry_created',

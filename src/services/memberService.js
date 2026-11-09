@@ -1,15 +1,16 @@
 import { 
   collection, 
   doc, 
+  getDoc,
   getDocs, 
   setDoc, 
   updateDoc, 
   deleteDoc, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth, isFirebaseConfigured } from '../firebase/config';
-import { logWorkspaceActivity, ACTIVITY_ACTIONS } from './activityService';
-import { createUserNotification, NOTIFICATION_TYPES } from './notificationService';
+import { db, auth, isFirebaseConfigured } from '../firebase/config.js';
+import { logWorkspaceActivity, ACTIVITY_ACTIONS } from './activityService.js';
+import { createUserNotification, NOTIFICATION_TYPES } from './notificationService.js';
 
 export const WORKSPACE_ROLES = {
   OWNER: 'owner',
@@ -133,12 +134,27 @@ export async function addWorkspaceMember(workspaceId, memberData, actorUser) {
 
       // Also update workspace document's members array & memberRoles map for fast security rule checks
       const wsRef = doc(db, 'workspaces', workspaceId);
-      const memberUids = updated.map(m => m.uid);
-      const memberRoles = updated.reduce((acc, m) => ({ ...acc, [m.uid]: m.role }), {});
-      await updateDoc(wsRef, {
-        members: memberUids,
-        memberRoles
-      });
+      const wsSnap = await getDoc(wsRef);
+      if (wsSnap.exists()) {
+        const wsData = wsSnap.data();
+        const currentMembers = Array.isArray(wsData.members) ? wsData.members : [];
+        const memberUids = Array.from(new Set([...currentMembers, memberData.uid]));
+        const memberRoles = {
+          ...(wsData.memberRoles || {}),
+          [memberData.uid]: memberData.role || WORKSPACE_ROLES.EDITOR
+        };
+        await updateDoc(wsRef, {
+          members: memberUids,
+          memberRoles
+        });
+      } else {
+        const memberUids = updated.map(m => m.uid);
+        const memberRoles = updated.reduce((acc, m) => ({ ...acc, [m.uid]: m.role }), {});
+        await updateDoc(wsRef, {
+          members: memberUids,
+          memberRoles
+        });
+      }
     } catch (err) {
       if (err?.code !== 'permission-denied') {
         console.warn('Firestore add member warning:', err.message);

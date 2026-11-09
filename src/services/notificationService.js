@@ -8,7 +8,7 @@ import {
   orderBy, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth, isFirebaseConfigured } from '../firebase/config';
+import { db, auth, isFirebaseConfigured } from '../firebase/config.js';
 
 export const NOTIFICATION_TYPES = {
   JOIN_REQUEST: 'join_request',

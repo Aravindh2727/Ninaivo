@@ -151,6 +151,8 @@ export const translations = {
     joinRequestBannerTitle: "Workspace Invitation Received",
     joinRequestBannerDesc: "You have been invited to join this diary workspace:",
     requestToJoinBtn: "Submit Join Request",
+    acceptAndJoinBtn: "Accept & Join Workspace",
+    acceptAndJoinSuccess: "Successfully joined workspace! Loading diary entries...",
     joinRequestSentMsg: "Join request submitted! The workspace owner will review your access.",
     joinRequestDeclinedMsg: "Invitation was declined.",
 
@@ -796,6 +798,8 @@ export const translations = {
     joinRequestBannerTitle: "பணிப்பகுதி அழைப்பு பெறப்பட்டது",
     joinRequestBannerDesc: "நீங்கள் இந்த நாட்குறிப்பு பணிப்பகுதியில் இணைய அழைக்கப்பட்டுள்ளீர்கள்:",
     requestToJoinBtn: "இணைய கோரிக்கை அனுப்பு",
+    acceptAndJoinBtn: "ஏற்றுக்கொண்டு இணையவும்",
+    acceptAndJoinSuccess: "பணிப்பகுதியில் வெற்றிகரமாக இணைந்தீர்கள்! நாட்குறிப்புகள் ஏற்றப்படுகின்றன...",
     joinRequestSentMsg: "இணைய கோரிக்கை அனுப்பப்பட்டது! உரிமையாளர் பரிசீலிப்பார்.",
     joinRequestDeclinedMsg: "அழைப்பு நிராகரிக்கப்பட்டது.",
 

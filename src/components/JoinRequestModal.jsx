@@ -15,7 +15,13 @@ import { useLanguage } from '../context/LanguageContext';
 import { WORKSPACE_MODES } from '../services/workspaceService';
 
 export default function JoinRequestModal({ isOpen, onClose, showToast }) {
-  const { incomingInviteData, requestToJoinWithToken, clearIncomingInvite } = useWorkspace();
+  const {
+    incomingInviteData,
+    incomingInviteToken,
+    acceptInvite,
+    requestToJoinWithToken,
+    clearIncomingInvite
+  } = useWorkspace();
   const { t } = useLanguage();
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -26,13 +32,13 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
     setSubmitting(true);
     setErrorMsg('');
     try {
-      const result = await requestToJoinWithToken();
+      const result = await acceptInvite(incomingInviteToken);
       if (result.success) {
-        showToast ? showToast(t('joinRequestSentMsg')) : alert(t('joinRequestSentMsg'));
+        showToast ? showToast(t('acceptAndJoinSuccess') || 'Successfully joined workspace!') : alert(t('acceptAndJoinSuccess') || 'Successfully joined workspace!');
         clearIncomingInvite();
         onClose();
       } else {
-        setErrorMsg(result.error || 'Failed to submit join request');
+        setErrorMsg(result.error || 'Failed to accept invitation');
       }
     } catch (err) {
       setErrorMsg(err.message || 'An error occurred');
@@ -170,7 +176,7 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
             ) : (
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <CheckCircle2 size={16} />
-                {t('requestToJoinBtn')}
+                {t('acceptAndJoinBtn') || 'Accept & Join Workspace'}
               </span>
             )}
           </button>

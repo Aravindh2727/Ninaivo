@@ -1,51 +1,52 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
-import { 
-  getWorkspacesForUser, 
-  createWorkspace, 
-  updateWorkspace, 
+import {
+  getWorkspacesForUser,
+  createWorkspace,
+  updateWorkspace,
   deleteWorkspace,
-  WORKSPACE_MODES 
+  WORKSPACE_MODES
 } from '../services/workspaceService';
-import { 
-  getWorkspaceEntries, 
-  createDiaryEntry, 
-  updateDiaryEntry, 
-  deleteDiaryEntry 
+import {
+  getWorkspaceEntries,
+  createDiaryEntry,
+  updateDiaryEntry,
+  deleteDiaryEntry
 } from '../services/entryService';
-import { 
-  getWorkspaceCategories, 
-  addCustomCategory, 
-  updateCustomCategory, 
-  deleteCustomCategory 
+import {
+  getWorkspaceCategories,
+  addCustomCategory,
+  updateCustomCategory,
+  deleteCustomCategory
 } from '../services/categoryService';
-import { 
-  getWorkspaceMembers, 
-  addWorkspaceMember, 
-  updateMemberRole, 
-  removeWorkspaceMember, 
-  leaveWorkspace, 
-  WORKSPACE_ROLES, 
-  hasPermission 
+import {
+  getWorkspaceMembers,
+  addWorkspaceMember,
+  updateMemberRole,
+  removeWorkspaceMember,
+  leaveWorkspace,
+  WORKSPACE_ROLES,
+  hasPermission
 } from '../services/memberService';
-import { 
-  createWorkspaceInvitation, 
-  validateInvitationToken, 
-  getWorkspaceInvitations, 
-  revokeInvitation, 
-  submitJoinRequest, 
-  getWorkspaceJoinRequests, 
-  processJoinRequest 
+import {
+  createWorkspaceInvitation,
+  validateInvitationToken,
+  acceptWorkspaceInvitation,
+  getWorkspaceInvitations,
+  revokeInvitation,
+  submitJoinRequest,
+  getWorkspaceJoinRequests,
+  processJoinRequest
 } from '../services/invitationService';
-import { 
-  getWorkspaceActivityLogs, 
-  logWorkspaceActivity, 
-  ACTIVITY_ACTIONS 
+import {
+  getWorkspaceActivityLogs,
+  logWorkspaceActivity,
+  ACTIVITY_ACTIONS
 } from '../services/activityService';
-import { 
-  getUserNotifications, 
-  markNotificationAsRead, 
-  markAllNotificationsAsRead 
+import {
+  getUserNotifications,
+  markNotificationAsRead,
+  markAllNotificationsAsRead
 } from '../services/notificationService';
 
 const WorkspaceContext = createContext(null);
@@ -69,19 +70,59 @@ export function WorkspaceProvider({ children }) {
   const [incomingInviteToken, setIncomingInviteToken] = useState(null);
   const [incomingInviteData, setIncomingInviteData] = useState(null);
 
-  // Detect ?invite=TOKEN in URL on mount
+  // Detect ?invite=TOKEN in URL on mount and persist across account registration/login
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get('invite');
+    const urlToken = params.get('invite');
+    const urlWs = params.get('ws');
+
+    if (urlToken) {
+      try {
+        sessionStorage.setItem('ninaivo_pending_invite_token', urlToken);
+        localStorage.setItem('ninaivo_pending_invite_token', urlToken);
+        if (urlWs) {
+          sessionStorage.setItem('ninaivo_pending_invite_ws', urlWs);
+          localStorage.setItem('ninaivo_pending_invite_ws', urlWs);
+        }
+      } catch (e) {}
+    }
+
+    const token = urlToken ||
+                  sessionStorage.getItem('ninaivo_pending_invite_token') ||
+                  localStorage.getItem('ninaivo_pending_invite_token');
+    const wsHint = urlWs ||
+                   sessionStorage.getItem('ninaivo_pending_invite_ws') ||
+                   localStorage.getItem('ninaivo_pending_invite_ws');
+
     if (token) {
       setIncomingInviteToken(token);
-      validateInvitationToken(token).then(res => {
+      validateInvitationToken(token, wsHint).then(res => {
         if (res.valid) {
           setIncomingInviteData(res.invitation);
         }
       });
     }
   }, []);
+
+  // Re-verify pending invitation when user authenticates or switches
+  useEffect(() => {
+    if (!currentUser?.uid) return;
+
+    const token = incomingInviteToken ||
+                  sessionStorage.getItem('ninaivo_pending_invite_token') ||
+                  localStorage.getItem('ninaivo_pending_invite_token');
+    const wsHint = sessionStorage.getItem('ninaivo_pending_invite_ws') ||
+                   localStorage.getItem('ninaivo_pending_invite_ws');
+
+    if (token) {
+      setIncomingInviteToken(token);
+      validateInvitationToken(token, wsHint).then(res => {
+        if (res.valid) {
+          setIncomingInviteData(res.invitation);
+        }
+      });
+    }
+  }, [currentUser?.uid]);
 
   // Load workspaces strictly after auth state is confirmed
   useEffect(() => {
@@ -155,11 +196,11 @@ export function WorkspaceProvider({ children }) {
     async function loadWorkspaceData() {
       try {
         const [
-          wsEntries, 
-          wsCategories, 
-          wsMembers, 
-          wsInvs, 
-          wsReqs, 
+          wsEntries,
+          wsCategories,
+          wsMembers,
+          wsInvs,
+          wsReqs,
           wsLogs
         ] = await Promise.all([
           getWorkspaceEntries(currentWorkspace.id, currentWorkspace.type),
@@ -221,9 +262,22 @@ export function WorkspaceProvider({ children }) {
   const canManageWorkspace = isOwner || currentUserRole === WORKSPACE_ROLES.ADMIN;
   const canWriteEntries = isOwner || currentUserRole === WORKSPACE_ROLES.ADMIN || currentUserRole === WORKSPACE_ROLES.EDITOR;
 
-  const switchWorkspace = (workspace) => {
-    if (workspace && workspace.id !== currentWorkspace?.id) {
-      setCurrentWorkspaceState(workspace);
+  const switchWorkspace = (workspaceOrId) => {
+    if (!workspaceOrId) return;
+    let target = null;
+    if (typeof workspaceOrId === 'string') {
+      target = workspaces.find(w => w.id === workspaceOrId) || null;
+    } else if (typeof workspaceOrId === 'object' && workspaceOrId.id) {
+      target = workspaceOrId;
+    }
+    if (target && target.id !== currentWorkspace?.id) {
+      setCurrentWorkspaceState(target);
+      if (effectiveUid) {
+        localStorage.setItem(`pdt_last_active_ws_${effectiveUid}`, target.id);
+        if (updateUserPreferences) {
+          updateUserPreferences({ lastActiveWorkspaceId: target.id }).catch(() => {});
+        }
+      }
     }
   };
 
@@ -417,9 +471,58 @@ export function WorkspaceProvider({ children }) {
     setActivityLogs(logs);
   };
 
+  // Direct Accept & Land in Workspace via Invitation Link
+  const handleAcceptInvite = async (token) => {
+    const tokenToUse = token || incomingInviteToken ||
+                       sessionStorage.getItem('ninaivo_pending_invite_token') ||
+                       localStorage.getItem('ninaivo_pending_invite_token');
+    if (!tokenToUse) throw new Error('Missing invitation token.');
+
+    const wsHint = sessionStorage.getItem('ninaivo_pending_invite_ws') ||
+                   localStorage.getItem('ninaivo_pending_invite_ws') ||
+                   new URLSearchParams(window.location.search).get('ws');
+
+    const result = await acceptWorkspaceInvitation(tokenToUse, currentUser || { uid: effectiveUid }, wsHint);
+
+    if (result.success) {
+      // 1. Reload user workspaces from cloud Firestore
+      const userWorkspaces = await getWorkspacesForUser(currentUser.uid, currentUser.displayName);
+      setWorkspaces(userWorkspaces);
+
+      // 2. Locate joined workspace and set as active
+      const targetWorkspace = userWorkspaces.find(w => w.id === result.workspaceId);
+      if (targetWorkspace) {
+        setCurrentWorkspaceState(targetWorkspace);
+        localStorage.setItem(`pdt_last_active_ws_${currentUser.uid}`, targetWorkspace.id);
+        if (updateUserPreferences) {
+          updateUserPreferences({ lastActiveWorkspaceId: targetWorkspace.id }).catch(() => {});
+        }
+      }
+
+      // 3. Clear pending invite artifacts
+      setIncomingInviteToken(null);
+      setIncomingInviteData(null);
+      try {
+        sessionStorage.removeItem('ninaivo_pending_invite_token');
+        sessionStorage.removeItem('ninaivo_pending_invite_ws');
+        localStorage.removeItem('ninaivo_pending_invite_token');
+        localStorage.removeItem('ninaivo_pending_invite_ws');
+      } catch (e) {}
+      window.history.replaceState({}, document.title, window.location.pathname);
+
+      return { success: true, workspace: targetWorkspace };
+    }
+
+    return result;
+  };
+
   // Join Requests
   const requestToJoinWithToken = async (token) => {
-    const req = await submitJoinRequest(token, currentUser || { uid: effectiveUid });
+    const tokenToUse = token || incomingInviteToken ||
+                       sessionStorage.getItem('ninaivo_pending_invite_token') ||
+                       localStorage.getItem('ninaivo_pending_invite_token');
+    if (!tokenToUse) throw new Error('Missing invitation token.');
+    const req = await submitJoinRequest(tokenToUse, currentUser || { uid: effectiveUid });
     return req;
   };
 
@@ -471,8 +574,16 @@ export function WorkspaceProvider({ children }) {
     clearIncomingInvite: () => {
       setIncomingInviteToken(null);
       setIncomingInviteData(null);
+      try {
+        sessionStorage.removeItem('ninaivo_pending_invite_token');
+        sessionStorage.removeItem('ninaivo_pending_invite_ws');
+        localStorage.removeItem('ninaivo_pending_invite_token');
+        localStorage.removeItem('ninaivo_pending_invite_ws');
+      } catch (e) {}
       window.history.replaceState({}, document.title, window.location.pathname);
     },
+    acceptInvite: handleAcceptInvite,
+    handleAcceptInvite,
     switchWorkspace,
     createNewWorkspace,
     updateCurrentWorkspace,

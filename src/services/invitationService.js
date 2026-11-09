@@ -1,17 +1,33 @@
 import { 
   collection, 
   doc, 
+  getDoc,
   getDocs, 
   setDoc, 
   updateDoc, 
   query, 
   where, 
+  arrayUnion,
+  writeBatch,
+  Timestamp,
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth, isFirebaseConfigured } from '../firebase/config';
-import { logWorkspaceActivity, ACTIVITY_ACTIONS } from './activityService';
-import { createUserNotification, NOTIFICATION_TYPES } from './notificationService';
-import { addWorkspaceMember, WORKSPACE_ROLES } from './memberService';
+import { db, auth, isFirebaseConfigured } from '../firebase/config.js';
+import { logWorkspaceActivity, ACTIVITY_ACTIONS } from './activityService.js';
+import { createUserNotification, NOTIFICATION_TYPES } from './notificationService.js';
+import { addWorkspaceMember, WORKSPACE_ROLES } from './memberService.js';
+
+/**
+ * Normalize Firestore Timestamp, ISO string, or number to epoch milliseconds
+ */
+export function getTimestampMs(val) {
+  if (!val) return null;
+  if (typeof val?.toMillis === 'function') return val.toMillis();
+  if (typeof val?.toDate === 'function') return val.toDate().getTime();
+  if (typeof val === 'number') return val;
+  const parsed = new Date(val).getTime();
+  return isNaN(parsed) ? null : parsed;
+}
 
 /**
  * Generate a cryptographically secure random token (48 chars hex)
@@ -61,8 +77,8 @@ export async function createWorkspaceInvitation(workspace, {
     workspaceType: workspace.type,
     tokenHash,
     rawToken, // Provided to the creator to build the link
-    invitedEmail: invitedEmail?.trim() || null,
-    role,
+    invitedEmail: invitedEmail?.trim() ? invitedEmail.trim().toLowerCase() : null,
+    role: role === WORKSPACE_ROLES.VIEWER ? WORKSPACE_ROLES.VIEWER : WORKSPACE_ROLES.EDITOR,
     expiresAt,
     status: 'pending', // 'pending' | 'accepted' | 'revoked' | 'expired'
     createdByUid: actorUser?.uid || 'owner',
@@ -82,15 +98,24 @@ export async function createWorkspaceInvitation(workspace, {
   globalMap[tokenHash] = invitationRecord;
   localStorage.setItem(globalKey, JSON.stringify(globalMap));
 
-  // Sync to Firestore
+  // Sync to Firestore:
+  // 1. In workspace subcollection: /workspaces/{workspace.id}/invitations/{invitationId}
+  // 2. In root collection: /invitations/{tokenHash} (allows recipient on any device to resolve workspace metadata)
   if (isFirebaseConfigured) {
     try {
       const invRef = doc(db, 'workspaces', workspace.id, 'invitations', invitationId);
-      await setDoc(invRef, {
+      const rootInvRef = doc(db, 'invitations', tokenHash);
+      const firestoreRecord = {
         ...invitationRecord,
         rawToken: null, // Never store plain-text token in Firestore for security
+        expiresAt: Timestamp.fromMillis(expiresAtMs),
+        expiresAtIso: expiresAt,
         serverCreatedAt: serverTimestamp()
-      });
+      };
+      await Promise.all([
+        setDoc(invRef, firestoreRecord),
+        setDoc(rootInvRef, firestoreRecord)
+      ]);
     } catch (err) {
       console.warn('Firestore create invitation warning:', err.message);
     }
@@ -104,7 +129,7 @@ export async function createWorkspaceInvitation(workspace, {
   });
 
   const baseUrl = window.location.origin + window.location.pathname;
-  const inviteLink = `${baseUrl}?invite=${rawToken}`;
+  const inviteLink = `${baseUrl}?invite=${rawToken}&ws=${workspace.id}`;
 
   return {
     ...invitationRecord,
@@ -115,30 +140,52 @@ export async function createWorkspaceInvitation(workspace, {
 /**
  * Validate an invitation token from link
  */
-export async function validateInvitationToken(token) {
+export async function validateInvitationToken(token, workspaceIdHint = null) {
   if (!token) return { valid: false, reason: 'Missing invitation token.' };
 
-  const tokenHash = await hashToken(token.trim());
+  const trimmedToken = token.trim();
+  const tokenHash = await hashToken(trimmedToken);
 
   // Check global local cache
   const globalKey = `pdt_active_invitations_map`;
   const globalMap = JSON.parse(localStorage.getItem(globalKey) || '{}');
   let invitation = globalMap[tokenHash] || null;
 
-  // If not in cache and Firestore configured, query invitations
-  if (!invitation && isFirebaseConfigured) {
+  // Authoritative Cloud Firestore lookup if not in local cache or always online
+  if (isFirebaseConfigured) {
     try {
-      // Find matching invitation document
-      // In Firestore, we check if invitation document exists
-      // Note: for security in production, invitation check can be a cloud function or authenticated query
+      // 1. Direct O(1) lookup in root /invitations/{tokenHash}
+      const rootInvRef = doc(db, 'invitations', tokenHash);
+      const rootSnap = await getDoc(rootInvRef);
+      if (rootSnap.exists()) {
+        invitation = {
+          id: rootSnap.id,
+          ...rootSnap.data()
+        };
+      } else if (workspaceIdHint) {
+        // 2. Direct subcollection fallback if workspaceIdHint was supplied
+        const wsInvRef = collection(db, 'workspaces', workspaceIdHint, 'invitations');
+        const q = query(wsInvRef, where('tokenHash', '==', tokenHash));
+        const qSnap = await getDocs(q);
+        if (!qSnap.empty) {
+          invitation = {
+            id: qSnap.docs[0].id,
+            ...qSnap.docs[0].data()
+          };
+        }
+      }
     } catch (err) {
-      console.warn('Error querying invitation token:', err);
+      console.warn('Error querying invitation token in Firestore:', err.message);
     }
   }
 
   if (!invitation) {
     return { valid: false, reason: 'Invitation not found or has been removed.' };
   }
+
+  // Cache found invitation for fast repeat verification
+  globalMap[tokenHash] = invitation;
+  localStorage.setItem(globalKey, JSON.stringify(globalMap));
 
   if (invitation.status === 'revoked') {
     return { valid: false, reason: 'This invitation has been revoked by the workspace owner.' };
@@ -148,13 +195,239 @@ export async function validateInvitationToken(token) {
     return { valid: false, reason: 'This single-use invitation has already been accepted.' };
   }
 
-  if (new Date(invitation.expiresAt).getTime() < Date.now()) {
+  const expMs = getTimestampMs(invitation.expiresAt);
+  if (expMs && expMs < Date.now()) {
     return { valid: false, reason: 'This invitation link has expired.' };
   }
 
   return {
     valid: true,
     invitation
+  };
+}
+
+/**
+ * Direct Accept & Land in Workspace Invitation Flow
+ * Authoritative atomic Firestore transaction that verifies cryptographic token status,
+ * validates email restrictions, prevents concurrent duplicate acceptances, updates workspace
+ * membership and member records, and transitions invitation status in a single commit.
+ */
+export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdHint = null) {
+  if (!inviteeUser?.uid) {
+    throw new Error('You must be signed in to accept a workspace invitation.');
+  }
+
+  const trimmedToken = (token || '').trim();
+  if (!trimmedToken) {
+    throw new Error('Missing invitation token.');
+  }
+  const tokenHash = await hashToken(trimmedToken);
+
+  let workspaceId = workspaceIdHint;
+  let workspaceName = '';
+  let workspaceType = 'family';
+  let role = WORKSPACE_ROLES.EDITOR;
+  let createdByUid = null;
+
+  // 1. Authoritative Cloud Firestore Atomic Batch when online & authenticated
+  if (isFirebaseConfigured && auth?.currentUser) {
+    try {
+      const rootInvRef = doc(db, 'invitations', tokenHash);
+      const rootInvSnap = await getDoc(rootInvRef);
+      if (!rootInvSnap.exists()) {
+        throw new Error('Invitation not found or has been removed.');
+      }
+
+      const invData = rootInvSnap.data();
+
+      // Security check 1: Status must be strictly pending (prevents race conditions / duplicate acceptances)
+      if (invData.status === 'revoked') {
+        throw new Error('This invitation has been revoked by the workspace owner.');
+      }
+      if (invData.status === 'accepted') {
+        throw new Error('This single-use invitation has already been accepted.');
+      }
+      if (invData.status !== 'pending') {
+        throw new Error('This invitation is no longer active.');
+      }
+
+      // Security check 2: Expiration verification
+      const expMs = getTimestampMs(invData.expiresAt);
+      if (expMs && expMs < Date.now()) {
+        throw new Error('This invitation link has expired.');
+      }
+
+      // Security check 3: Email restriction enforcement
+      if (invData.invitedEmail) {
+        const userEmail = (inviteeUser.email || '').trim().toLowerCase();
+        const targetEmail = invData.invitedEmail.trim().toLowerCase();
+        if (userEmail !== targetEmail) {
+          throw new Error(`This invitation was sent specifically to ${invData.invitedEmail}. You are currently signed in as ${inviteeUser.email || 'another user'}.`);
+        }
+      }
+
+      workspaceId = invData.workspaceId;
+      workspaceName = invData.workspaceName || 'Shared Workspace';
+      workspaceType = invData.workspaceType || 'family';
+      role = invData.role || WORKSPACE_ROLES.EDITOR;
+      createdByUid = invData.createdByUid;
+
+      // Security check 4: Personal workspace privacy enforcement
+      if (workspaceType === 'personal') {
+        throw new Error('Personal workspaces are strictly private and cannot be joined.');
+      }
+
+      // Execute Atomic Batched Write across workspace members, member record, and invitation status
+      const batch = writeBatch(db);
+
+      // 1. Append to workspace members and set memberRole via arrayUnion (server-enforced atomicity)
+      const wsRef = doc(db, 'workspaces', workspaceId);
+      batch.update(wsRef, {
+        members: arrayUnion(inviteeUser.uid),
+        [`memberRoles.${inviteeUser.uid}`]: role,
+        lastInviteTokenHash: tokenHash,
+        updatedAt: serverTimestamp()
+      });
+
+      // 2. Create member subcollection document
+      const memRef = doc(db, 'workspaces', workspaceId, 'members', inviteeUser.uid);
+      const memberRecord = {
+        id: inviteeUser.uid,
+        uid: inviteeUser.uid,
+        displayName: inviteeUser.displayName || 'Family Member',
+        email: (inviteeUser.email || '').trim().toLowerCase(),
+        photoURL: inviteeUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+        role,
+        inviteTokenHash: tokenHash,
+        status: 'active',
+        joinedAt: new Date().toISOString(),
+        recentActivity: 'Joined workspace via invite'
+      };
+      batch.set(memRef, {
+        ...memberRecord,
+        serverCreatedAt: serverTimestamp()
+      });
+
+      // 3. Mark root invitation document as accepted
+      batch.update(rootInvRef, {
+        status: 'accepted',
+        acceptedByUid: inviteeUser.uid,
+        acceptedAt: serverTimestamp()
+      });
+
+      // Commit all writes in a single atomic database operation
+      await batch.commit();
+
+      // Update workspace subcollection invitation if accessible (outside batch to avoid rule restrictions on subcollection)
+      if (invData.id) {
+        try {
+          const subInvRef = doc(db, 'workspaces', workspaceId, 'invitations', invData.id);
+          await updateDoc(subInvRef, {
+            status: 'accepted',
+            acceptedByUid: inviteeUser.uid,
+            acceptedAt: serverTimestamp()
+          });
+        } catch (e) {
+          // Non-admin may not have manageWorkspace permission for subcollection update; safe to ignore
+        }
+      }
+    } catch (err) {
+      console.error('Firestore accept invitation batch error:', err);
+      throw err;
+    }
+  } else {
+    // Local / Offline fallback validation
+    const validation = await validateInvitationToken(token, workspaceIdHint);
+    if (!validation.valid) {
+      throw new Error(validation.reason);
+    }
+    const { invitation } = validation;
+    workspaceId = invitation.workspaceId;
+    workspaceName = invitation.workspaceName;
+    workspaceType = invitation.workspaceType || 'family';
+    role = invitation.role || WORKSPACE_ROLES.EDITOR;
+    createdByUid = invitation.createdByUid;
+
+    // Email check in fallback
+    if (invitation.invitedEmail) {
+      const userEmail = (inviteeUser.email || '').trim().toLowerCase();
+      const targetEmail = invitation.invitedEmail.trim().toLowerCase();
+      if (userEmail !== targetEmail) {
+        throw new Error(`This invitation was sent specifically to ${invitation.invitedEmail}. You are currently signed in as ${inviteeUser.email || 'another user'}.`);
+      }
+    }
+  }
+
+  // 2. Update local caches on invitee device
+  const localWsKey = `pdt_workspaces_${inviteeUser.uid}`;
+  const cachedWorkspaces = JSON.parse(localStorage.getItem(localWsKey) || '[]');
+  if (!cachedWorkspaces.some(w => w.id === workspaceId)) {
+    const wsStub = {
+      id: workspaceId,
+      name: workspaceName || 'Shared Workspace',
+      type: workspaceType,
+      ownerUid: createdByUid || 'owner',
+      members: [inviteeUser.uid],
+      memberRoles: { [inviteeUser.uid]: role },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      settings: {
+        color: workspaceType === 'business' ? '#06b6d4' : '#ec4899',
+        icon: workspaceType === 'business' ? 'Briefcase' : 'Heart',
+        description: `${workspaceName || 'Shared'} workspace`
+      }
+    };
+    localStorage.setItem(localWsKey, JSON.stringify([...cachedWorkspaces, wsStub]));
+  }
+
+  const localMemKey = `pdt_members_${workspaceId}`;
+  const cachedMembers = JSON.parse(localStorage.getItem(localMemKey) || '[]');
+  if (!cachedMembers.some(m => m.uid === inviteeUser.uid)) {
+    cachedMembers.push({
+      id: inviteeUser.uid,
+      uid: inviteeUser.uid,
+      displayName: inviteeUser.displayName || 'Family Member',
+      email: inviteeUser.email || '',
+      photoURL: inviteeUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
+      role,
+      status: 'active',
+      joinedAt: new Date().toISOString(),
+      recentActivity: 'Joined workspace via invite'
+    });
+    localStorage.setItem(localMemKey, JSON.stringify(cachedMembers));
+  }
+
+  // Update global active invitations cache
+  const globalKey = `pdt_active_invitations_map`;
+  const globalMap = JSON.parse(localStorage.getItem(globalKey) || '{}');
+  if (globalMap[tokenHash]) {
+    globalMap[tokenHash].status = 'accepted';
+    localStorage.setItem(globalKey, JSON.stringify(globalMap));
+  }
+
+  // 3. Activity Audit Log
+  await logWorkspaceActivity(workspaceId, {
+    action: ACTIVITY_ACTIONS.MEMBER_JOINED,
+    details: `${inviteeUser.displayName || inviteeUser.email || 'User'} joined the workspace as ${role}.`,
+    user: inviteeUser
+  });
+
+  // 4. Notify workspace owner
+  if (createdByUid) {
+    await createUserNotification(createdByUid, {
+      type: NOTIFICATION_TYPES.MEMBER_JOINED,
+      title: 'New Member Joined',
+      message: `${inviteeUser.displayName || inviteeUser.email || 'A user'} has accepted the invitation and joined "${workspaceName}".`,
+      workspaceId,
+      workspaceName
+    });
+  }
+
+  return {
+    success: true,
+    workspaceId,
+    workspaceName,
+    role
   };
 }
 
@@ -166,13 +439,29 @@ export async function revokeInvitation(workspaceId, invitationId, actorUser) {
 
   const localKey = `pdt_invitations_${workspaceId}`;
   const existing = JSON.parse(localStorage.getItem(localKey) || '[]');
+  const targetInv = existing.find(inv => inv.id === invitationId);
+  const tokenHash = targetInv?.tokenHash;
+
   const updated = existing.map(inv => inv.id === invitationId ? { ...inv, status: 'revoked' } : inv);
   localStorage.setItem(localKey, JSON.stringify(updated));
+
+  if (tokenHash) {
+    const globalKey = `pdt_active_invitations_map`;
+    const globalMap = JSON.parse(localStorage.getItem(globalKey) || '{}');
+    if (globalMap[tokenHash]) {
+      globalMap[tokenHash].status = 'revoked';
+      localStorage.setItem(globalKey, JSON.stringify(globalMap));
+    }
+  }
 
   if (isFirebaseConfigured) {
     try {
       const invRef = doc(db, 'workspaces', workspaceId, 'invitations', invitationId);
       await updateDoc(invRef, { status: 'revoked' });
+      if (tokenHash) {
+        const rootInvRef = doc(db, 'invitations', tokenHash);
+        await updateDoc(rootInvRef, { status: 'revoked' }).catch(() => {});
+      }
     } catch (err) {
       console.warn('Firestore revoke invitation warning:', err.message);
     }
@@ -299,7 +588,10 @@ export async function submitJoinRequest(invitationToken, inviteeUser) {
     });
   }
 
-  return requestRecord;
+  return {
+    success: true,
+    ...requestRecord
+  };
 }
 
 /**

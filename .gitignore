@@ -44,6 +44,7 @@ Thumbs.db
 *.sw?
 
 # Temporary testing & scratch files
+.local_jre/
 tmp_chrome/
 scratch_chrome_user_data/
 *.pma
