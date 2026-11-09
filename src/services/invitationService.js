@@ -1,16 +1,16 @@
-import { 
-  collection, 
-  doc, 
+import {
+  collection,
+  doc,
   getDoc,
-  getDocs, 
-  setDoc, 
-  updateDoc, 
-  query, 
-  where, 
+  getDocs,
+  setDoc,
+  updateDoc,
+  query,
+  where,
   arrayUnion,
   writeBatch,
   Timestamp,
-  serverTimestamp 
+  serverTimestamp
 } from 'firebase/firestore';
 import { db, auth, isFirebaseConfigured } from '../firebase/config.js';
 import { logWorkspaceActivity, ACTIVITY_ACTIONS } from './activityService.js';
@@ -52,10 +52,11 @@ export async function hashToken(token) {
 /**
  * Create a new workspace invitation (Family or Business ONLY)
  */
-export async function createWorkspaceInvitation(workspace, { 
-  invitedEmail = '', 
-  role = WORKSPACE_ROLES.EDITOR, 
-  expiresInHours = 48 
+export async function createWorkspaceInvitation(workspace, {
+  invitedEmail = '',
+  role = WORKSPACE_ROLES.EDITOR,
+  relationship = 'family',
+  expiresInHours = 48
 }, actorUser) {
   if (!workspace || !workspace.id) throw new Error('Workspace is required.');
 
@@ -67,8 +68,21 @@ export async function createWorkspaceInvitation(workspace, {
   const rawToken = generateSecureToken();
   const tokenHash = await hashToken(rawToken);
   const invitationId = `inv-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
-  const expiresAtMs = Date.now() + (Number(expiresInHours) || 48) * 3600 * 1000;
-  const expiresAt = new Date(expiresAtMs).toISOString();
+
+  const isNever = expiresInHours === 'never' || expiresInHours === null || expiresInHours === 0 || expiresInHours === '0';
+  let expiresAtMs = null;
+  let expiresAt = null;
+
+  if (!isNever) {
+    const hours = Number(expiresInHours);
+    const validHours = (!isNaN(hours) && hours > 0) ? hours : 48;
+    expiresAtMs = Date.now() + validHours * 3600 * 1000;
+    expiresAt = new Date(expiresAtMs).toISOString();
+  }
+
+  const validRole = [WORKSPACE_ROLES.ADMIN, WORKSPACE_ROLES.VIEWER].includes(role)
+    ? role
+    : WORKSPACE_ROLES.EDITOR;
 
   const invitationRecord = {
     id: invitationId,
@@ -78,7 +92,8 @@ export async function createWorkspaceInvitation(workspace, {
     tokenHash,
     rawToken, // Provided to the creator to build the link
     invitedEmail: invitedEmail?.trim() ? invitedEmail.trim().toLowerCase() : null,
-    role: role === WORKSPACE_ROLES.VIEWER ? WORKSPACE_ROLES.VIEWER : WORKSPACE_ROLES.EDITOR,
+    role: validRole,
+    relationship: relationship || 'family',
     expiresAt,
     status: 'pending', // 'pending' | 'accepted' | 'revoked' | 'expired'
     createdByUid: actorUser?.uid || 'owner',
@@ -108,7 +123,7 @@ export async function createWorkspaceInvitation(workspace, {
       const firestoreRecord = {
         ...invitationRecord,
         rawToken: null, // Never store plain-text token in Firestore for security
-        expiresAt: Timestamp.fromMillis(expiresAtMs),
+        expiresAt: expiresAtMs ? Timestamp.fromMillis(expiresAtMs) : null,
         expiresAtIso: expiresAt,
         serverCreatedAt: serverTimestamp()
       };
@@ -122,9 +137,10 @@ export async function createWorkspaceInvitation(workspace, {
   }
 
   // Audit Log
+  const expiryDetail = isNever ? 'never expires' : `expires in ${expiresInHours}h`;
   await logWorkspaceActivity(workspace.id, {
     action: ACTIVITY_ACTIONS.INVITE_CREATED,
-    details: `Created invitation for ${invitedEmail || 'shareable link'} (${role} role, expires in ${expiresInHours}h).`,
+    details: `Created invitation for ${invitedEmail || 'shareable link'} (${role} role, ${expiryDetail}).`,
     user: actorUser
   });
 
@@ -227,6 +243,7 @@ export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdH
   let workspaceName = '';
   let workspaceType = 'family';
   let role = WORKSPACE_ROLES.EDITOR;
+  let relationship = 'family';
   let createdByUid = null;
 
   // 1. Authoritative Cloud Firestore Atomic Batch when online & authenticated
@@ -270,6 +287,7 @@ export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdH
       workspaceName = invData.workspaceName || 'Shared Workspace';
       workspaceType = invData.workspaceType || 'family';
       role = invData.role || WORKSPACE_ROLES.EDITOR;
+      relationship = invData.relationship || 'family';
       createdByUid = invData.createdByUid;
 
       // Security check 4: Personal workspace privacy enforcement
@@ -298,6 +316,7 @@ export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdH
         email: (inviteeUser.email || '').trim().toLowerCase(),
         photoURL: inviteeUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
         role,
+        relationship: invData.relationship || 'family',
         inviteTokenHash: tokenHash,
         status: 'active',
         joinedAt: new Date().toISOString(),
@@ -346,6 +365,7 @@ export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdH
     workspaceName = invitation.workspaceName;
     workspaceType = invitation.workspaceType || 'family';
     role = invitation.role || WORKSPACE_ROLES.EDITOR;
+    relationship = invitation.relationship || 'family';
     createdByUid = invitation.createdByUid;
 
     // Email check in fallback
@@ -390,6 +410,7 @@ export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdH
       email: inviteeUser.email || '',
       photoURL: inviteeUser.photoURL || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80',
       role,
+      relationship,
       status: 'active',
       joinedAt: new Date().toISOString(),
       recentActivity: 'Joined workspace via invite'
@@ -511,7 +532,8 @@ export async function getWorkspaceInvitations(workspaceId) {
   // Auto-mark expired invitations
   const now = Date.now();
   return invitations.map(inv => {
-    if (inv.status === 'pending' && new Date(inv.expiresAt).getTime() < now) {
+    const expMs = getTimestampMs(inv.expiresAt);
+    if (inv.status === 'pending' && expMs && expMs < now) {
       return { ...inv, status: 'expired' };
     }
     return inv;
@@ -648,10 +670,10 @@ export async function processJoinRequest(workspace, requestId, action, actorUser
   if (isFirebaseConfigured) {
     try {
       const reqRef = doc(db, 'workspaces', workspace.id, 'joinRequests', requestId);
-      await updateDoc(reqRef, { 
-        status: newStatus, 
+      await updateDoc(reqRef, {
+        status: newStatus,
         processedAt: serverTimestamp(),
-        processedByUid: actorUser.uid 
+        processedByUid: actorUser.uid
       });
     } catch (err) {
       console.warn('Firestore update join request warning:', err.message);

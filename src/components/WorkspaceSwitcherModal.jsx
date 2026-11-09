@@ -12,6 +12,7 @@ import {
   ShieldCheck
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { WORKSPACE_MODES } from '../services/workspaceService';
 
@@ -23,6 +24,7 @@ export default function WorkspaceSwitcherModal({ isOpen, onClose, showToast }) {
     createNewWorkspace, 
     removeWorkspace 
   } = useWorkspace();
+  const { currentUser } = useAuth();
   const { t } = useLanguage();
 
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -146,16 +148,23 @@ export default function WorkspaceSwitcherModal({ isOpen, onClose, showToast }) {
                         {getModeIcon(ws.type)}
                       </div>
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
                           <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {ws.name}
                           </span>
                           <span className="tag-pill" style={{ textTransform: 'capitalize', fontSize: '0.60rem', padding: '1px 5px' }}>
                             {ws.type}
                           </span>
+                          {ws.ownerUid && ws.ownerUid !== currentUser?.uid && ws.type !== 'personal' && (
+                            <span className="tag-pill" style={{ fontSize: '0.58rem', padding: '1px 5px', background: 'var(--chip-green-bg)', color: 'var(--primary)', borderColor: 'var(--primary)' }}>
+                              {t('sharedDiaryBadge')}
+                            </span>
+                          )}
                         </div>
                         <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {ws.settings?.description || `${ws.type} diary records`}
+                          {ws.ownerUid && ws.ownerUid !== currentUser?.uid && ws.type !== 'personal'
+                            ? `${t('sharedBy')} ${ws.ownerName || 'Owner'} • ${ws.settings?.description || `${ws.type} records`}`
+                            : (ws.settings?.description || `${ws.type} diary records`)}
                         </span>
                       </div>
                     </div>

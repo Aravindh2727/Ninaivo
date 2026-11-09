@@ -272,8 +272,12 @@ service cloud.firestore {
            getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.workspaceId == workspaceId
           )
         );
-        allow update: if isOwner(getWorkspace()) &&
-          request.resource.data.role != 'owner';
+        allow update: if (isOwner(getWorkspace()) && request.resource.data.role != 'owner') ||
+          (isAuthenticated() && request.auth.uid == memberUid &&
+           isMember(getWorkspace()) &&
+           request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isOnline', 'lastSeen', 'lastSessionId', 'activeSessions']) &&
+           request.resource.data.role == resource.data.role &&
+           request.resource.data.status == resource.data.status);
         allow delete: if (isOwner(getWorkspace()) && resource.data.role != 'owner') ||
           (isAuthenticated() && request.auth.uid == memberUid && resource.data.role != 'owner');
       }

@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
-import { 
-  PlusCircle, 
-  Send, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  DollarSign, 
-  Image as ImageIcon, 
-  X, 
-  UploadCloud, 
-  Tag, 
-  Sparkles, 
+import {
+  PlusCircle,
+  Send,
+  Calendar,
+  Clock,
+  MapPin,
+  DollarSign,
+  Image as ImageIcon,
+  X,
+  UploadCloud,
+  Camera,
+  Tag,
+  Sparkles,
   Tag as TagIcon,
-  Languages
+  Languages,
+  Layers
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -24,8 +26,11 @@ import AudioAttachmentPlayer from '../components/AudioAttachmentPlayer';
 import { getCategoryDisplayName } from '../utils/categoryTranslations';
 
 export default function AddEntryView({ onDone, showToast }) {
-  const { categories, addEntry, currentWorkspace } = useWorkspace();
+  const { categories, addEntry, currentWorkspace, workspaces } = useWorkspace();
   const { t, language } = useLanguage();
+
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(currentWorkspace?.id || workspaces?.[0]?.id);
+  const selectedWorkspace = (workspaces || []).find(w => w.id === selectedWorkspaceId) || currentWorkspace;
 
   const now = new Date();
   const defaultDate = now.toISOString().split('T')[0];
@@ -132,7 +137,7 @@ export default function AddEntryView({ onDone, showToast }) {
         attachments
       };
 
-      await addEntry(newEntryData);
+      await addEntry(newEntryData, selectedWorkspaceId);
       showToast('Diary note published successfully!');
       onDone();
     } catch (err) {
@@ -159,6 +164,43 @@ export default function AddEntryView({ onDone, showToast }) {
         </div>
 
         <form onSubmit={handleSubmit}>
+          {/* 0. Destination Workspace Selector */}
+          <div className="form-group compact-form-group" style={{ background: 'var(--bg-card-subtle)', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--border-color)', marginBottom: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+              <label className="form-label compact-form-label" style={{ marginBottom: 0, display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                <Layers size={12} style={{ color: 'var(--primary)' }} />
+                <span>{t('destinationWorkspace')}</span>
+              </label>
+              <span className="tag-pill" style={{ fontSize: '0.62rem', padding: '1px 6px', textTransform: 'capitalize' }}>
+                {selectedWorkspace?.type === 'personal' ? t('modePersonal') : (selectedWorkspace?.type === 'family' ? t('modeFamily') : t('modeBusiness'))}
+              </span>
+            </div>
+            <select
+              className="form-select compact-input"
+              style={{ height: '34px', fontSize: '0.78rem', fontWeight: 500, width: '100%', boxSizing: 'border-box' }}
+              value={selectedWorkspaceId}
+              onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+            >
+              {(workspaces || []).map((ws) => {
+                const isShared = ws.ownerUid && ws.ownerUid !== currentWorkspace?.ownerUid && ws.type !== 'personal';
+                const typeLabel = ws.type === 'personal' ? t('modePersonal') : (ws.type === 'family' ? t('modeFamily') : t('modeBusiness'));
+                const label = isShared
+                  ? `${ws.name} (${typeLabel} • ${t('sharedDiaryBadge')})`
+                  : `${ws.name} (${typeLabel})`;
+                return (
+                  <option key={ws.id} value={ws.id}>
+                    {label}
+                  </option>
+                );
+              })}
+            </select>
+            <span style={{ fontSize: '0.66rem', color: 'var(--text-dim)', marginTop: '3px', display: 'block' }}>
+              {selectedWorkspace?.type === 'personal'
+                ? t('personalDesc')
+                : (selectedWorkspace?.type === 'family' ? t('familyDesc') : t('businessDesc'))}
+            </span>
+          </div>
+
           {/* 1. Category / Entry Type Selector */}
           <div className="form-group compact-form-group">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -360,23 +402,71 @@ export default function AddEntryView({ onDone, showToast }) {
                 <span>{t('photos')} ({photoAttachments.length})</span>
                 <ImageIcon size={11} />
               </label>
-              <label 
-                htmlFor="new-entry-photo-input" 
-                className="tag-pill" 
-                style={{ cursor: 'pointer', color: 'var(--primary)', borderColor: 'var(--primary)', fontSize: '0.68rem', padding: '2px 8px' }}
-              >
-                <UploadCloud size={11} style={{ display: 'inline', marginRight: '3px' }} />
-                {uploading ? t('uploadingPhotos') : t('uploadPhotos')}
-              </label>
-              <input
-                id="new-entry-photo-input"
-                type="file"
-                multiple
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handlePhotoFiles}
-                disabled={uploading}
-              />
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <label
+                  htmlFor="new-entry-photo-input"
+                  className="tag-pill"
+                  title={uploading ? t('uploadingPhotos') : t('uploadPhotos')}
+                  aria-label={uploading ? t('uploadingPhotos') : t('uploadPhotos')}
+                  style={{
+                    cursor: uploading ? 'wait' : 'pointer',
+                    color: 'var(--primary)',
+                    borderColor: 'var(--primary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px',
+                    height: '30px',
+                    padding: 0,
+                    borderRadius: '8px',
+                    background: 'var(--chip-green-bg)',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <UploadCloud size={13} />
+                </label>
+                <input
+                  id="new-entry-photo-input"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoFiles}
+                  disabled={uploading}
+                />
+
+                <label
+                  htmlFor="new-entry-camera-input"
+                  className="tag-pill"
+                  title={t('takePhoto')}
+                  aria-label={t('takePhoto')}
+                  style={{
+                    cursor: uploading ? 'wait' : 'pointer',
+                    color: 'var(--primary)',
+                    borderColor: 'var(--primary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px',
+                    height: '30px',
+                    padding: 0,
+                    borderRadius: '8px',
+                    background: 'var(--chip-green-bg)',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <Camera size={13} />
+                </label>
+                <input
+                  id="new-entry-camera-input"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoFiles}
+                  disabled={uploading}
+                />
+              </div>
             </div>
 
             {uploadProgressText && (

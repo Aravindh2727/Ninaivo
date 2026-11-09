@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Check, 
-  Calendar, 
-  Clock, 
-  MapPin, 
-  DollarSign, 
-  Image as ImageIcon, 
-  Trash2, 
-  UploadCloud, 
+import {
+  X,
+  Check,
+  Calendar,
+  Clock,
+  MapPin,
+  DollarSign,
+  Image as ImageIcon,
+  Trash2,
+  UploadCloud,
+  Camera,
   Tag,
-  Languages 
+  Languages
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -21,8 +22,10 @@ import AudioAttachmentPlayer from './AudioAttachmentPlayer';
 import { getCategoryDisplayName } from '../utils/categoryTranslations';
 
 export default function EditEntryModal({ entry, isOpen, onClose, onSave, showToast }) {
-  const { categories, currentWorkspace } = useWorkspace();
+  const { categories, currentWorkspace, workspaces } = useWorkspace();
   const { t, language } = useLanguage();
+
+  const originWs = (workspaces || []).find(w => w.id === entry?.workspaceId) || currentWorkspace;
 
   const [title, setTitle] = useState('');
   const [entryType, setEntryType] = useState('Daily Activity');
@@ -134,7 +137,7 @@ export default function EditEntryModal({ entry, isOpen, onClose, onSave, showToa
         tags: parsedTags,
         attachments
       };
-      const saved = await onSave(entry.id, updates);
+      const saved = await onSave(entry.id, updates, { workspaceId: entry?.workspaceId || currentWorkspace?.id });
       if (saved !== false) {
         showToast && showToast('Diary note updated successfully!');
         onClose();
@@ -151,14 +154,34 @@ export default function EditEntryModal({ entry, isOpen, onClose, onSave, showToa
       <div className="modal-dialog compact-modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', padding: '14px 16px' }}>
         <div className="modal-header compact-modal-header" style={{ justifyContent: 'space-between', marginBottom: '8px' }}>
           <h2 className="modal-title compact-modal-title" style={{ fontSize: '0.96rem' }}>{t('editDiaryEntry')}</h2>
-          <button 
-            type="button" 
-            onClick={onClose} 
+          <button
+            type="button"
+            onClick={onClose}
             className="compact-action-btn"
             style={{ color: 'var(--text-dim)' }}
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Origin Workspace Indicator */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '10px',
+          padding: '5px 8px',
+          background: 'var(--bg-card-subtle)',
+          borderRadius: '6px',
+          border: '1px solid var(--border-color)',
+          fontSize: '0.68rem'
+        }}>
+          <span style={{ color: 'var(--text-muted)' }}>
+            {t('destinationWorkspace')}: <strong style={{ color: 'var(--text-main)' }}>{originWs?.name || 'Workspace'}</strong>
+          </span>
+          <span className="tag-pill" style={{ textTransform: 'capitalize', fontSize: '0.62rem', padding: '1px 5px' }}>
+            {originWs?.type === 'personal' ? t('modePersonal') : (originWs?.type === 'family' ? t('modeFamily') : t('modeBusiness'))}
+          </span>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -327,23 +350,71 @@ export default function EditEntryModal({ entry, isOpen, onClose, onSave, showToa
                 <span>{t('photos')} ({photoAttachments.length})</span>
                 <ImageIcon size={11} />
               </label>
-              <label 
-                htmlFor="edit-modal-photo-input" 
-                className="tag-pill" 
-                style={{ cursor: 'pointer', color: 'var(--primary)', borderColor: 'var(--primary)', fontSize: '0.68rem', padding: '2px 8px' }}
-              >
-                <UploadCloud size={11} style={{ display: 'inline', marginRight: '3px' }} />
-                {uploading ? t('uploadingPhotos') : t('uploadPhotos')}
-              </label>
-              <input
-                id="edit-modal-photo-input"
-                type="file"
-                multiple
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handlePhotoUpload}
-                disabled={uploading}
-              />
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <label
+                  htmlFor="edit-modal-photo-input"
+                  className="tag-pill"
+                  title={uploading ? t('uploadingPhotos') : t('uploadPhotos')}
+                  aria-label={uploading ? t('uploadingPhotos') : t('uploadPhotos')}
+                  style={{
+                    cursor: uploading ? 'wait' : 'pointer',
+                    color: 'var(--primary)',
+                    borderColor: 'var(--primary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px',
+                    height: '30px',
+                    padding: 0,
+                    borderRadius: '8px',
+                    background: 'var(--chip-green-bg)',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <UploadCloud size={13} />
+                </label>
+                <input
+                  id="edit-modal-photo-input"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoUpload}
+                  disabled={uploading}
+                />
+
+                <label
+                  htmlFor="edit-modal-camera-input"
+                  className="tag-pill"
+                  title={t('takePhoto')}
+                  aria-label={t('takePhoto')}
+                  style={{
+                    cursor: uploading ? 'wait' : 'pointer',
+                    color: 'var(--primary)',
+                    borderColor: 'var(--primary)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '30px',
+                    height: '30px',
+                    padding: 0,
+                    borderRadius: '8px',
+                    background: 'var(--chip-green-bg)',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <Camera size={13} />
+                </label>
+                <input
+                  id="edit-modal-camera-input"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  style={{ display: 'none' }}
+                  onChange={handlePhotoUpload}
+                  disabled={uploading}
+                />
+              </div>
             </div>
 
             {photoAttachments.length > 0 && (

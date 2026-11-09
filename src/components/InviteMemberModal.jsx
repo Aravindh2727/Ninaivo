@@ -1,33 +1,34 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  Copy, 
-  Share2, 
-  Check, 
-  Mail, 
-  Link as LinkIcon, 
-  Clock, 
-  ShieldCheck, 
-  Trash2, 
-  UserPlus, 
-  AlertCircle 
+import {
+  X,
+  Copy,
+  Share2,
+  Check,
+  Mail,
+  Link as LinkIcon,
+  Clock,
+  ShieldCheck,
+  Trash2,
+  UserPlus,
+  AlertCircle
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
 import { useLanguage } from '../context/LanguageContext';
 import { WORKSPACE_ROLES } from '../services/memberService';
 
 export default function InviteMemberModal({ isOpen, onClose, showToast }) {
-  const { 
-    currentWorkspace, 
-    invitations, 
-    generateInvitation, 
-    revokeExistingInvite 
+  const {
+    currentWorkspace,
+    invitations,
+    generateInvitation,
+    revokeExistingInvite
   } = useWorkspace();
   const { t } = useLanguage();
 
   const [inviteType, setInviteType] = useState('link'); // 'link' | 'email'
   const [invitedEmail, setInvitedEmail] = useState('');
   const [selectedRole, setSelectedRole] = useState(WORKSPACE_ROLES.EDITOR);
+  const [relationship, setRelationship] = useState('family');
   const [expiresInHours, setExpiresInHours] = useState('48');
   const [generatedLink, setGeneratedLink] = useState('');
   const [copied, setCopied] = useState(false);
@@ -51,7 +52,8 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
       const res = await generateInvitation({
         invitedEmail: inviteType === 'email' ? invitedEmail.trim() : '',
         role: selectedRole,
-        expiresInHours: Number(expiresInHours)
+        relationship,
+        expiresInHours: expiresInHours === 'never' ? 'never' : Number(expiresInHours)
       });
 
       setGeneratedLink(res.inviteLink);
@@ -89,8 +91,19 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog compact-modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '420px', maxHeight: '90vh', overflowY: 'auto', padding: '14px 16px' }}>
+    <div className="modal-overlay" onClick={onClose} style={{ padding: '12px' }}>
+      <div
+        className="modal-dialog compact-modal-dialog"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: '400px',
+          maxHeight: '86vh',
+          overflowY: 'auto',
+          padding: '14px 16px',
+          boxSizing: 'border-box'
+        }}
+      >
         <div className="modal-header compact-modal-header" style={{ justifyContent: 'space-between', marginBottom: '8px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--chip-green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>
@@ -98,9 +111,9 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
             </div>
             <h2 className="modal-title compact-modal-title" style={{ fontSize: '0.96rem' }}>{t('inviteModalTitle')}</h2>
           </div>
-          <button 
-            type="button" 
-            onClick={onClose} 
+          <button
+            type="button"
+            onClick={onClose}
             className="compact-action-btn"
             style={{ color: 'var(--text-dim)' }}
           >
@@ -161,6 +174,23 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                 </div>
               )}
 
+              {/* Relationship Selection */}
+              <div className="form-group compact-form-group">
+                <label className="form-label compact-form-label">{t('relationshipLabel')}</label>
+                <select
+                  className="form-select compact-input"
+                  value={relationship}
+                  onChange={(e) => setRelationship(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                >
+                  <option value="family">{t('relFamily')}</option>
+                  <option value="friend">{t('relFriend')}</option>
+                  <option value="colleague">{t('relColleague')}</option>
+                  <option value="partner">{t('relPartner')}</option>
+                  <option value="other">{t('relOther')}</option>
+                </select>
+              </div>
+
               {/* Role Selection */}
               <div className="form-group compact-form-group">
                 <label className="form-label compact-form-label">{t('assignedRoleLabel')}</label>
@@ -168,11 +198,19 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                   className="form-select compact-input"
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
                 >
-                  <option value={WORKSPACE_ROLES.EDITOR}>{t('roleEditor')} — {t('roleEditorDesc')}</option>
-                  <option value={WORKSPACE_ROLES.ADMIN}>{t('roleAdmin')} — {t('roleAdminDesc')}</option>
-                  <option value={WORKSPACE_ROLES.VIEWER}>{t('roleViewer')} — {t('roleViewerDesc')}</option>
+                  <option value={WORKSPACE_ROLES.EDITOR}>{t('roleEditor')}</option>
+                  <option value={WORKSPACE_ROLES.ADMIN}>{t('roleAdmin')}</option>
+                  <option value={WORKSPACE_ROLES.VIEWER}>{t('roleViewer')}</option>
                 </select>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-dim)', marginTop: '3px', display: 'block', lineHeight: 1.3 }}>
+                  {selectedRole === WORKSPACE_ROLES.ADMIN
+                    ? t('roleAdminDesc')
+                    : selectedRole === WORKSPACE_ROLES.VIEWER
+                      ? t('roleViewerDesc')
+                      : t('roleEditorDesc')}
+                </span>
               </div>
 
               {/* Expiration Selection */}
@@ -189,6 +227,7 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                   <option value="24">{t('hours24')}</option>
                   <option value="48">{t('hours48')}</option>
                   <option value="168">{t('days7')}</option>
+                  <option value="never">{t('never')}</option>
                 </select>
               </div>
 
@@ -259,20 +298,21 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                         background: 'var(--bg-card-subtle)',
                         borderRadius: '6px',
                         border: '1px solid var(--border-color)',
-                        fontSize: '0.72rem'
+                        fontSize: '0.72rem',
+                        gap: '8px'
                       }}
                     >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100%' }}>
                             {inv.invitedEmail || t('shareableLink')}
                           </span>
-                          <span className="tag-pill" style={{ textTransform: 'capitalize', fontSize: '0.60rem', padding: '1px 4px' }}>
+                          <span className="tag-pill" style={{ textTransform: 'capitalize', fontSize: '0.60rem', padding: '1px 4px', flexShrink: 0 }}>
                             {inv.role}
                           </span>
                         </div>
-                        <span style={{ fontSize: '0.64rem', color: 'var(--text-dim)' }}>
-                          {t('expiresLabel')} {new Date(inv.expiresAt).toLocaleDateString()} • {t('statusLabel')} <strong style={{ textTransform: 'capitalize' }}>{inv.status}</strong>
+                        <span style={{ fontSize: '0.64rem', color: 'var(--text-dim)', display: 'block', marginTop: '1px' }}>
+                          {t('expiresLabel')} {inv.expiresAt ? new Date(inv.expiresAt).toLocaleDateString() : t('never')} • {t('statusLabel')} <strong style={{ textTransform: 'capitalize' }}>{inv.status}</strong>
                         </span>
                       </div>
 
@@ -281,7 +321,7 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                           type="button"
                           onClick={() => handleRevoke(inv.id)}
                           className="compact-action-btn delete"
-                          style={{ width: '22px', height: '22px' }}
+                          style={{ width: '22px', height: '22px', flexShrink: 0 }}
                         >
                           <Trash2 size={12} />
                         </button>
@@ -294,11 +334,11 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
           </>
         )}
 
-        <div style={{ marginTop: '10px', textAlign: 'right' }}>
-          <button 
-            type="button" 
-            className="btn-secondary compact-btn" 
-            style={{ width: 'auto', padding: '4px 12px', display: 'inline-flex', height: '30px' }} 
+        <div style={{ marginTop: '12px' }}>
+          <button
+            type="button"
+            className="btn-secondary compact-btn"
+            style={{ width: '100%', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             onClick={onClose}
           >
             {t('close')}

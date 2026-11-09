@@ -84,7 +84,7 @@ html, body {
 /* Forest Night (Dark) Welcome Banner */
 :root .welcome-banner-bg,
 [data-theme="dark"] .welcome-banner-bg {
-  background: 
+  background:
     linear-gradient(90deg, rgba(16, 43, 35, 0.96) 0%, rgba(23, 56, 45, 0.84) 52%, rgba(38, 75, 61, 0.5) 100%),
     url('https://images.unsplash.com/photo-1502082553048-f009c37129b9?w=800&auto=format&fit=crop&q=80') center right/cover no-repeat,
     linear-gradient(135deg, #17382D 0%, #264B3D 100%);
@@ -103,7 +103,7 @@ html, body {
 
 /* Nature Fresh (Light) Welcome Banner - High-Contrast Fresh Meadow */
 [data-theme="light"] .welcome-banner-bg {
-  background: 
+  background:
     linear-gradient(90deg, #FFFFFF 0%, rgba(255, 255, 255, 0.94) 46%, rgba(229, 245, 223, 0.78) 100%),
     url('https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=800&auto=format&fit=crop&q=80') center right/cover no-repeat,
     linear-gradient(135deg, #E5F5DF 0%, #E3F0FF 100%) !important;
@@ -1849,6 +1849,21 @@ input:checked + .toggle-slider:before {
 
   .bottom-nav {
     padding: 0 2px;
+  }
+}
+
+/* Responsive Mobile Modals */
+@media (max-width: 480px) {
+  .modal-overlay {
+    padding: 10px;
+    align-items: center;
+  }
+
+  .modal-dialog {
+    width: 100%;
+    max-width: 100%;
+    padding: 14px 12px;
+    border-radius: var(--radius-md);
   }
 }
 

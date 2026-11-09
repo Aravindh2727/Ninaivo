@@ -1,4 +1,12 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import {
+  collection,
+  doc,
+  query,
+  orderBy,
+  onSnapshot
+} from 'firebase/firestore';
+import { db, auth, isFirebaseConfigured } from '../firebase/config';
 import { useAuth } from './AuthContext';
 import {
   getWorkspacesForUser,
@@ -13,6 +21,11 @@ import {
   updateDiaryEntry,
   deleteDiaryEntry
 } from '../services/entryService';
+import {
+  initUserPresence,
+  cleanupUserPresence,
+  calculateGroupPresence
+} from '../services/presenceService';
 import {
   getWorkspaceCategories,
   addCustomCategory,
@@ -193,6 +206,9 @@ export function WorkspaceProvider({ children }) {
       updateUserPreferences({ lastActiveWorkspaceId: currentWorkspace.id }).catch(() => {});
     }
 
+    let unsubEntries = () => {};
+    let unsubMembers = () => {};
+
     async function loadWorkspaceData() {
       try {
         const [
@@ -223,6 +239,48 @@ export function WorkspaceProvider({ children }) {
           setJoinRequests(wsReqs);
           setActivityLogs(wsLogs);
         }
+
+        // Establish real-time onSnapshot listener for shared entries
+        if (isFirebaseConfigured && auth?.currentUser) {
+          try {
+            const entriesRef = collection(db, 'workspaces', currentWorkspace.id, 'entries');
+            const qEntries = query(entriesRef, orderBy('date', 'desc'));
+            unsubEntries = onSnapshot(qEntries, (snapshot) => {
+              if (!isMounted) return;
+              const liveEntries = snapshot.docs.map(docSnap => ({
+                id: docSnap.id,
+                ...docSnap.data()
+              }));
+              setEntries(liveEntries);
+              localStorage.setItem(`pdt_entries_${currentWorkspace.id}`, JSON.stringify(liveEntries));
+            }, (err) => {
+              if (err?.code !== 'permission-denied') {
+                console.warn('Realtime entries subscription note:', err.message);
+              }
+            });
+          } catch (e) {
+            console.warn('Failed to attach realtime entries listener:', e.message);
+          }
+
+          // Establish real-time onSnapshot listener for members
+          if (currentWorkspace.type !== 'personal') {
+            try {
+              const memsRef = collection(db, 'workspaces', currentWorkspace.id, 'members');
+              unsubMembers = onSnapshot(memsRef, (snapshot) => {
+                if (!isMounted) return;
+                if (!snapshot.empty) {
+                  const liveMembers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                  setMembers(liveMembers);
+                  localStorage.setItem(`pdt_members_${currentWorkspace.id}`, JSON.stringify(liveMembers));
+                }
+              }, (err) => {
+                if (err?.code !== 'permission-denied') {
+                  console.warn('Realtime members subscription note:', err.message);
+                }
+              });
+            } catch (e) {}
+          }
+        }
       } catch (err) {
         if (err?.code !== 'permission-denied') {
           console.error('Error loading workspace data:', err);
@@ -231,8 +289,21 @@ export function WorkspaceProvider({ children }) {
     }
 
     loadWorkspaceData();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+      unsubEntries();
+      unsubMembers();
+    };
   }, [currentWorkspace?.id, currentWorkspace?.type, currentWorkspace?.ownerUid, effectiveUid, currentUser]);
+
+  // Real-time Authenticated Presence Lifecycle
+  useEffect(() => {
+    if (!currentUser?.uid || !currentWorkspace?.id) return;
+    const cleanup = initUserPresence(currentUser, currentWorkspace.id);
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, [currentUser?.uid, currentWorkspace?.id]);
 
   // Load user notifications
   useEffect(() => {
@@ -320,46 +391,66 @@ export function WorkspaceProvider({ children }) {
   };
 
   // Entry CRUD with Audit Logging & Permissions
-  const addEntry = async (entryData) => {
-    if (!currentWorkspace) throw new Error('No active workspace selected.');
-    if (!canWriteEntries) {
+  const addEntry = async (entryData, targetWsId = null) => {
+    const wsId = targetWsId || entryData.workspaceId || currentWorkspace?.id;
+    if (!wsId) throw new Error('No active workspace selected.');
+
+    const targetWs = workspaces.find(w => w.id === wsId) || currentWorkspace;
+
+    // Check write permissions on target workspace
+    const isTargetOwner = targetWs.ownerUid === effectiveUid;
+    const targetMember = (members && targetWs.id === currentWorkspace?.id)
+      ? members.find(m => m.uid === effectiveUid)
+      : null;
+    const targetRole = isTargetOwner
+      ? WORKSPACE_ROLES.OWNER
+      : (targetWs.memberRoles?.[effectiveUid] || targetMember?.role || (isOwner ? WORKSPACE_ROLES.OWNER : WORKSPACE_ROLES.VIEWER));
+
+    const canWriteTarget = isTargetOwner || ['owner', 'admin', 'editor'].includes(targetRole);
+    if (!canWriteTarget) {
       throw new Error('Viewers have read-only access and cannot create diary entries.');
     }
 
     const fullData = {
       ...entryData,
+      workspaceId: wsId,
       createdByUid: effectiveUid,
       authorName: currentUser?.displayName || 'Diary Author',
       authorAvatar: currentUser?.photoURL || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      currency: currentWorkspace.settings?.currency || '₹'
+      currency: targetWs.settings?.currency || '₹'
     };
-    const created = await createDiaryEntry(currentWorkspace.id, fullData);
-    setEntries(prev => [created, ...prev]);
+    const created = await createDiaryEntry(wsId, fullData);
+
+    // If destination matches current active workspace, immediately update local state
+    if (currentWorkspace?.id === wsId) {
+      setEntries(prev => [created, ...prev.filter(e => e.id !== created.id)]);
+    } else {
+      // Auto-switch to destination workspace so user sees their new entry immediately
+      switchWorkspace(targetWs);
+    }
 
     // Audit Log
-    const act = await logWorkspaceActivity(currentWorkspace.id, {
+    const act = await logWorkspaceActivity(wsId, {
       action: ACTIVITY_ACTIONS.ENTRY_CREATED,
       details: `Added new diary note: "${created.title}".`,
       entryId: created.id,
       user: currentUser
     });
-    if (act) setActivityLogs(prev => [act, ...prev]);
+    if (act && currentWorkspace?.id === wsId) setActivityLogs(prev => [act, ...prev]);
 
     return created;
   };
 
   const editEntry = async (entryId, updates, options = {}) => {
-    if (!currentWorkspace) return;
-    if (!canWriteEntries) {
-      throw new Error('Viewers have read-only access and cannot edit entries.');
-    }
+    const wsId = options.workspaceId || updates.workspaceId || currentWorkspace?.id;
+    if (!wsId) return;
 
     const target = entries.find(e => e.id === entryId);
-    if (currentUserRole === WORKSPACE_ROLES.EDITOR && target?.createdByUid !== effectiveUid) {
+    if (currentUserRole === WORKSPACE_ROLES.EDITOR && target?.createdByUid && target.createdByUid !== effectiveUid) {
       throw new Error('Editors can only edit their own entries.');
     }
 
-    const res = await updateDiaryEntry(currentWorkspace.id, entryId, updates, {
+    const res = await updateDiaryEntry(wsId, entryId, updates, {
       baseVersion: target?.version || 1,
       baseUpdatedAt: target?.updatedAt,
       ...options
@@ -369,15 +460,17 @@ export function WorkspaceProvider({ children }) {
       return res; // Propagate conflict to caller for interactive user resolution
     }
 
-    setEntries(prev => prev.map(e => e.id === entryId ? res : e));
+    if (currentWorkspace?.id === wsId) {
+      setEntries(prev => prev.map(e => e.id === entryId ? res : e));
+    }
 
-    const act = await logWorkspaceActivity(currentWorkspace.id, {
+    const act = await logWorkspaceActivity(wsId, {
       action: ACTIVITY_ACTIONS.ENTRY_EDITED,
       details: `Edited diary note: "${res.title}".`,
       entryId,
       user: currentUser
     });
-    if (act) setActivityLogs(prev => [act, ...prev]);
+    if (act && currentWorkspace?.id === wsId) setActivityLogs(prev => [act, ...prev]);
 
     return res;
   };
@@ -454,9 +547,9 @@ export function WorkspaceProvider({ children }) {
   };
 
   // Invitations
-  const generateInvitation = async ({ invitedEmail, role, expiresInHours }) => {
+  const generateInvitation = async ({ invitedEmail, role, relationship, expiresInHours }) => {
     if (!canManageWorkspace) throw new Error('Permission denied.');
-    const res = await createWorkspaceInvitation(currentWorkspace, { invitedEmail, role, expiresInHours }, currentUser);
+    const res = await createWorkspaceInvitation(currentWorkspace, { invitedEmail, role, relationship, expiresInHours }, currentUser);
     setInvitations(prev => [res, ...prev]);
     const logs = await getWorkspaceActivityLogs(currentWorkspace.id);
     setActivityLogs(logs);
@@ -603,6 +696,7 @@ export function WorkspaceProvider({ children }) {
     handleProcessJoinRequest,
     readNotification,
     readAllNotifications,
+    calculateGroupPresence,
     refreshActivityLogs: async () => {
       if (currentWorkspace?.id) {
         const logs = await getWorkspaceActivityLogs(currentWorkspace.id);

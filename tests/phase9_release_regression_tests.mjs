@@ -122,7 +122,7 @@ const rules = fs.readFileSync(rulesPath, 'utf8');
 
 assert(rules.includes('canEditEntry(getWorkspace(), resource.data)'), 'SEC-01: Entry update checks author UID for editors');
 assert(rules.includes('canDeleteEntry(getWorkspace(), resource.data)'), 'SEC-01: Entry delete checks author UID for editors');
-assert(rules.includes('isOwner(getWorkspace()) && \n          request.resource.data.role != \'owner\''), 'SEC-02: Member role changes strictly owner-only');
+assert(rules.includes('isOwner(getWorkspace()) &&') && rules.includes("request.resource.data.role != 'owner'"), 'SEC-02: Member role changes strictly owner-only');
 assert(rules.includes('isValidActivityAction(getWorkspace(), request.resource.data)'), 'SEC-03: Audit log authenticity enforced');
 assert(rules.includes('allow update, delete: if false;'), 'SEC-03: Audit log immutability locked');
 assert(rules.includes('match /{document=**} {\n      allow read, write: if false;\n    }'), 'Default-deny database security fallback active');

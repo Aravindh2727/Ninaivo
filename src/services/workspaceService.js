@@ -1,6 +1,7 @@
 import { 
   collection, 
   doc, 
+  getDoc,
   getDocs, 
   setDoc, 
   updateDoc, 
@@ -9,7 +10,7 @@ import {
   where, 
   serverTimestamp 
 } from 'firebase/firestore';
-import { db, auth, isFirebaseConfigured } from '../firebase/config';
+import { db, auth, isFirebaseConfigured } from '../firebase/config.js';
 
 export const WORKSPACE_MODES = {
   PERSONAL: 'personal',
@@ -102,9 +103,11 @@ export async function getWorkspacesForUser(uid, ownerName) {
         where('ownerUid', '==', uid)
       );
       // Query shared workspaces where user is an active member
+      // Note: constraint on type ('family', 'business') satisfies Firestore non-personal security rule
       const qMember = query(
         collection(db, WORKSPACES_COLLECTION),
-        where('members', 'array-contains', uid)
+        where('members', 'array-contains', uid),
+        where('type', 'in', ['family', 'business'])
       );
 
       const [ownerSnap, memberSnap] = await Promise.all([
@@ -121,6 +124,32 @@ export async function getWorkspacesForUser(uid, ownerName) {
           });
         }
       });
+
+      // Also recover any joined shared workspace IDs cached locally via direct document getDoc
+      const cachedRaw = localStorage.getItem(localCacheKey);
+      if (cachedRaw) {
+        try {
+          const cachedList = JSON.parse(cachedRaw);
+          for (const c of cachedList) {
+            if (c.id && !wsMap.has(c.id)) {
+              try {
+                const docSnap = await getDoc(doc(db, WORKSPACES_COLLECTION, c.id));
+                if (docSnap.exists()) {
+                  const data = docSnap.data();
+                  if (data.ownerUid === uid || (Array.isArray(data.members) && data.members.includes(uid))) {
+                    wsMap.set(docSnap.id, { id: docSnap.id, ...data });
+                  }
+                }
+              } catch {
+                // If offline or removed, preserve local stub
+                wsMap.set(c.id, c);
+              }
+            }
+          }
+        } catch {
+          // ignore cache parse error
+        }
+      }
 
       const cloudWorkspaces = Array.from(wsMap.values());
 
