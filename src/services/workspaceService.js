@@ -110,9 +110,10 @@ export async function getWorkspacesForUser(uid, ownerName) {
         where('type', 'in', ['family', 'business'])
       );
 
-      const [ownerSnap, memberSnap] = await Promise.all([
+      const [ownerSnap, memberSnap, userDocSnap] = await Promise.all([
         getDocs(qOwner).catch(() => ({ docs: [], empty: true })),
-        getDocs(qMember).catch(() => ({ docs: [], empty: true }))
+        getDocs(qMember).catch(() => ({ docs: [], empty: true })),
+        getDoc(doc(db, 'users', uid)).catch(() => null)
       ]);
 
       const wsMap = new Map();
@@ -124,6 +125,29 @@ export async function getWorkspacesForUser(uid, ownerName) {
           });
         }
       });
+
+      // Recover joined shared workspace IDs from user cloud record (works even without composite index)
+      const userData = userDocSnap?.exists?.() ? userDocSnap.data() : null;
+      const cloudKnownIds = [
+        ...(Array.isArray(userData?.joinedWorkspaceIds) ? userData.joinedWorkspaceIds : []),
+        userData?.preferences?.lastActiveWorkspaceId
+      ].filter(Boolean);
+
+      for (const knownId of cloudKnownIds) {
+        if (!wsMap.has(knownId)) {
+          try {
+            const docSnap = await getDoc(doc(db, WORKSPACES_COLLECTION, knownId));
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              if (data.ownerUid === uid || (Array.isArray(data.members) && data.members.includes(uid))) {
+                wsMap.set(docSnap.id, { id: docSnap.id, ...data });
+              }
+            }
+          } catch {
+            // Ignore unreachable or unpermitted workspace ID
+          }
+        }
+      }
 
       // Also recover any joined shared workspace IDs cached locally via direct document getDoc
       const cachedRaw = localStorage.getItem(localCacheKey);

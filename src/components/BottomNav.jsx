@@ -40,7 +40,7 @@ export default function BottomNav({ activeTab, onSelectTab }) {
                 cursor: 'pointer',
                 padding: 0,
                 position: 'relative',
-                transform: 'translateY(-12px)',
+                transform: 'none',
                 width: '100%',
                 minWidth: 0,
                 minHeight: '48px',

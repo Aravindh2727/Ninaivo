@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Sparkles, 
   Heart, 
@@ -32,6 +33,18 @@ export default function WorkspaceSwitcherModal({ isOpen, onClose, showToast }) {
   const [newWsType, setNewWsType] = useState(WORKSPACE_MODES.PERSONAL);
   const [newWsDesc, setNewWsDesc] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -94,34 +107,60 @@ export default function WorkspaceSwitcherModal({ isOpen, onClose, showToast }) {
     }
   };
 
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-dialog compact-modal-dialog" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '410px', padding: '14px 16px', borderRadius: '16px' }}>
-        <div className="modal-header compact-modal-header" style={{ justifyContent: 'space-between', marginBottom: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--chip-green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
-              <Layers size={16} />
+  const modalContent = (
+    <div
+      className="modal-overlay"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1100,
+        padding: '12px',
+        overscrollBehavior: 'contain'
+      }}
+    >
+      <div
+        className="modal-dialog"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          maxWidth: '410px',
+          width: '100%',
+          maxHeight: 'min(90vh, 90dvh, calc(100dvh - 24px))',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          padding: 0,
+          borderRadius: '16px'
+        }}
+      >
+        <div style={{ padding: '14px 16px 8px 16px', flexShrink: 0, borderBottom: '1px solid var(--border-color)' }}>
+          <div className="modal-header compact-modal-header" style={{ justifyContent: 'space-between', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ width: '28px', height: '28px', borderRadius: '7px', background: 'var(--chip-green-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0 }}>
+                <Layers size={16} />
+              </div>
+              <h2 className="modal-title compact-modal-title" style={{ fontSize: '0.92rem', fontWeight: 700 }}>{t('switchWorkspace')}</h2>
             </div>
-            <h2 className="modal-title compact-modal-title" style={{ fontSize: '0.92rem', fontWeight: 700 }}>{t('switchWorkspace')}</h2>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '3px', width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              aria-label="Close"
+            >
+              <X size={16} />
+            </button>
           </div>
-          <button 
-            type="button" 
-            onClick={onClose} 
-            style={{ background: 'transparent', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '3px', width: '26px', height: '26px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-            aria-label="Close"
-          >
-            <X size={16} />
-          </button>
+
+          <p className="modal-body compact-modal-subtitle" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: 0, lineHeight: 1.25 }}>
+            {t('workspaceSwitcherDesc')}
+          </p>
         </div>
 
-        <p className="modal-body compact-modal-subtitle" style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '10px', lineHeight: 1.25 }}>
-          {t('workspaceSwitcherDesc')}
-        </p>
-
+        <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain', padding: '12px 16px 14px 16px' }}>
         {/* Workspaces List */}
         {!showCreateForm ? (
           <>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '250px', overflowY: 'auto', marginBottom: '10px', paddingRight: '2px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '10px' }}>
               {workspaces.map((ws) => {
                 const isSelected = ws.id === currentWorkspace?.id;
                 return (
@@ -283,8 +322,13 @@ export default function WorkspaceSwitcherModal({ isOpen, onClose, showToast }) {
             </div>
           </form>
         )}
+        </div>
       </div>
     </div>
   );
+
+  return (typeof document !== 'undefined' && createPortal)
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }
 

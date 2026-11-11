@@ -1047,7 +1047,7 @@ input:checked + .toggle-slider:before {
 
 /* Elevated Add Center Button */
 .nav-item.add-btn {
-  transform: translateY(-12px);
+  transform: none;
 }
 
 .add-btn-circle {
@@ -1060,11 +1060,12 @@ input:checked + .toggle-slider:before {
   justify-content: center;
   color: #ffffff;
   box-shadow: 0 4px 14px var(--primary-glow);
+  transform: translateY(-10px);
   transition: transform var(--transition-fast), box-shadow var(--transition-fast);
 }
 
 .nav-item.add-btn:active .add-btn-circle {
-  transform: scale(0.92);
+  transform: translateY(-10px) scale(0.92);
 }
 
 .nav-item.add-btn.active .add-btn-circle {
@@ -1089,6 +1090,7 @@ input:checked + .toggle-slider:before {
   align-items: center;
   gap: 8px;
   z-index: 100;
+  pointer-events: none;
   animation: slideDown 250ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -1480,7 +1482,7 @@ input:checked + .toggle-slider:before {
 .header-panel-backdrop {
   position: fixed;
   top: 60px;
-  bottom: var(--bottom-nav-height, 68px);
+  bottom: calc(var(--bottom-nav-height, 68px) + env(safe-area-inset-bottom, 0px));
   left: 0;
   right: 0;
   background: rgba(0, 0, 0, 0.45);

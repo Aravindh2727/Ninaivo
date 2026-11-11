@@ -484,7 +484,9 @@ export default function DiaryView({ onNavigate, showToast }) {
       {/* Edit Entry Modal with Optimistic Conflict Handling */}
       {editingEntry && (
         <EditEntryModal
+          isOpen={Boolean(editingEntry)}
           entry={editingEntry}
+          showToast={showToast}
           onClose={() => setEditingEntry(null)}
           onSave={async (id, updates) => {
             const res = await editEntry(id, updates);

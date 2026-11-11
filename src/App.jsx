@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useRef, Suspense, lazy } from 'react';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import HomeView from './views/HomeView';
@@ -79,12 +79,16 @@ function AppContent() {
         setTheme(preferred);
       }
     }
+  }, [userProfile?.preferences?.theme]);
+
+  // Sync language with cloud userProfile preference upon initial session restoration
+  useEffect(() => {
     if (userProfile?.preferences?.language) {
       window.dispatchEvent(new CustomEvent('ninaivo-sync-language', { 
         detail: { language: userProfile.preferences.language } 
       }));
     }
-  }, [userProfile?.preferences?.theme, userProfile?.preferences?.language]);
+  }, [userProfile?.preferences?.language]);
 
   // Listen for language changes and persist to cloud profile
   useEffect(() => {
@@ -100,6 +104,14 @@ function AppContent() {
 
   // Active navigation tab
   const [activeTab, setActiveTab] = useState('home'); // 'home' | 'diary' | 'calendar' | 'analytics' | 'gallery' | 'add' | 'members' | 'workspaces' | 'settings' | 'profile'
+  const mainContentRef = useRef(null);
+
+  // Reset main scroll container when switching views or workspaces on mobile
+  useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTop = 0;
+    }
+  }, [activeTab, currentWorkspace?.id]);
 
   // Modals
   const [showWorkspaceSwitcher, setShowWorkspaceSwitcher] = useState(false);
@@ -149,14 +161,12 @@ function AppContent() {
   }, [theme]);
 
   const toggleTheme = () => {
-    setTheme(prev => {
-      const next = prev === 'dark' ? 'light' : 'dark';
-      showToast(next === 'dark' ? 'Forest Night (Dark Mode)' : 'Nature Fresh (Light Mode)');
-      if (currentUser && updateUserPreferences) {
-        updateUserPreferences({ theme: next }).catch(() => {});
-      }
-      return next;
-    });
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    showToast(next === 'dark' ? 'Forest Night (Dark Mode)' : 'Nature Fresh (Light Mode)');
+    if (currentUser && updateUserPreferences) {
+      updateUserPreferences({ theme: next }).catch(() => {});
+    }
   };
 
   // Handle Logout Confirmation
@@ -292,7 +302,7 @@ function AppContent() {
       />
 
       {/* Main Content Body */}
-      <main className={`app-content ${activeTab === 'home' ? 'home-view-active' : ''}`}>
+      <main ref={mainContentRef} className={`app-content ${activeTab === 'home' ? 'home-view-active' : ''}`}>
         {activeTab === 'home' && (
           <HomeView
             onNavigate={(tab) => {
@@ -407,10 +417,10 @@ function AppContent() {
       {/* Bottom Navigation Only — Strict Zero Side Drawer */}
       <BottomNav
         activeTab={
-          ['analytics', 'gallery', 'diary'].includes(activeTab) 
-            ? 'home' 
-            : ['profile', 'backup_restore'].includes(activeTab) 
-            ? 'settings' 
+          ['analytics', 'gallery', 'diary'].includes(activeTab)
+            ? 'home'
+            : ['profile', 'backup_restore', 'workspaces'].includes(activeTab)
+            ? 'settings'
             : activeTab
         }
         onSelectTab={(tabId) => {

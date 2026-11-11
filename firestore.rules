@@ -122,7 +122,7 @@ service cloud.firestore {
       function isMember(ws) {
         return isAuthenticated() && (
           ws.ownerUid == request.auth.uid ||
-          (ws.members != null && (request.auth.uid in ws.members))
+          (!isPersonal(ws) && ws.members != null && (request.auth.uid in ws.members))
         );
       }
 
@@ -260,6 +260,10 @@ service cloud.firestore {
       match /members/{memberUid} {
         allow read: if isMember(getWorkspace());
         allow create: if (
+          (isOwner(getWorkspace()) &&
+           request.auth.uid == memberUid &&
+           request.resource.data.role == 'owner' &&
+           request.resource.data.get('uid', memberUid) == memberUid) ||
           (canManageWorkspace(getWorkspace()) && request.resource.data.role != 'owner') ||
           (!isPersonal(getWorkspace()) &&
            isAuthenticated() &&

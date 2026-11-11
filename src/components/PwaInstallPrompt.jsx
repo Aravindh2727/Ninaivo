@@ -107,7 +107,7 @@ export default function PwaInstallPrompt({ showToast, theme }) {
       {showInstallBanner && deferredPrompt && (
         <div style={{
           position: 'fixed',
-          bottom: '72px',
+          bottom: 'calc(var(--bottom-nav-height, 68px) + env(safe-area-inset-bottom, 0px) + 18px)',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'calc(100% - 32px)',

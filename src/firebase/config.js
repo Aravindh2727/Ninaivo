@@ -1,10 +1,11 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { getAuth, setPersistence, browserLocalPersistence, connectAuthEmulator } from 'firebase/auth';
 import { 
   getFirestore, 
   initializeFirestore, 
   persistentLocalCache, 
-  persistentMultipleTabManager 
+  persistentMultipleTabManager,
+  connectFirestoreEmulator
 } from 'firebase/firestore';
 import { getAnalytics, isSupported } from 'firebase/analytics';
 
@@ -63,6 +64,24 @@ try {
 }
 
 export const db = firestoreDb;
+
+// Opt-in local Firebase Emulator connection ONLY in Vite dev mode (dead-code eliminated from prod builds)
+try {
+  if (
+    import.meta.env.DEV &&
+    import.meta.env.VITE_USE_FIREBASE_EMULATORS === 'true' &&
+    typeof window !== 'undefined' &&
+    !window.__NINAIVO_EMULATORS_CONNECTED__
+  ) {
+    const authUrl = import.meta.env.VITE_FIREBASE_AUTH_EMULATOR_URL || 'http://127.0.0.1:9099';
+    const [fsHost, fsPort] = (import.meta.env.VITE_FIRESTORE_EMULATOR_HOST || '127.0.0.1:8080').split(':');
+    connectAuthEmulator(auth, authUrl, { disableWarnings: true });
+    connectFirestoreEmulator(db, fsHost || '127.0.0.1', Number(fsPort) || 8080);
+    window.__NINAIVO_EMULATORS_CONNECTED__ = true;
+  }
+} catch (err) {
+  // Ignore when import.meta.env is undefined outside Vite (e.g., Node test runner) or emulator already attached
+}
 
 // Initialize Firebase Analytics optionally and safely
 // Guarded with opt-in to avoid unwanted 400 Bad Request calls to Installations API on custom domains

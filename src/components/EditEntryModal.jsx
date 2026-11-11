@@ -21,7 +21,7 @@ import VoiceRecorder from './VoiceRecorder';
 import AudioAttachmentPlayer from './AudioAttachmentPlayer';
 import { getCategoryDisplayName } from '../utils/categoryTranslations';
 
-export default function EditEntryModal({ entry, isOpen, onClose, onSave, showToast }) {
+export default function EditEntryModal({ entry, isOpen = true, onClose, onSave, showToast }) {
   const { categories, currentWorkspace, workspaces } = useWorkspace();
   const { t, language } = useLanguage();
 

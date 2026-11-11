@@ -346,6 +346,7 @@ runTest('firestore.rules permits null expiresAt for root invitations and workspa
     'Rules explicitly allow null expiresAt on root invitation acceptance'
   );
   assert.ok(
+    rulesContent.includes("(invBefore.get('expiresAt', null) == null || request.time < invBefore.expiresAt)") ||
     rulesContent.includes("(invBefore.expiresAt == null || request.time < invBefore.expiresAt)"),
     'Rules explicitly allow null expiresAt during workspace self-join verification'
   );

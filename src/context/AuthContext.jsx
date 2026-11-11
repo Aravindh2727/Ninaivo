@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, isFirebaseConfigured } from '../firebase/config';
 import { 
@@ -19,10 +19,18 @@ export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const prefsRef = useRef({});
+
+  useEffect(() => {
+    if (userProfile?.preferences) {
+      prefsRef.current = { ...prefsRef.current, ...userProfile.preferences };
+    }
+  }, [userProfile?.preferences]);
 
   // Load user profile details
   const fetchUserProfile = async (user) => {
     if (!user) {
+      prefsRef.current = {};
       setUserProfile(null);
       return null;
     }
@@ -31,6 +39,7 @@ export function AuthProvider({ children }) {
       if (!profile) {
         profile = await createUserProfileDocument(user);
       }
+      prefsRef.current = profile?.preferences ? { ...profile.preferences } : {};
       setUserProfile(profile);
       return profile;
     } catch (err) {
@@ -69,6 +78,7 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     await logoutUser();
+    prefsRef.current = {};
     setCurrentUser(null);
     setUserProfile(null);
   };
@@ -86,10 +96,11 @@ export function AuthProvider({ children }) {
 
   const updateUserPreferences = async (preferenceUpdates) => {
     if (!currentUser) return;
-    const currentPrefs = userProfile?.preferences || {};
-    const mergedPrefs = { ...currentPrefs, ...preferenceUpdates };
-    await updateUserProfileData({ preferences: mergedPrefs });
-    return mergedPrefs;
+    const mergedPrefs = { ...(userProfile?.preferences || {}), ...prefsRef.current, ...preferenceUpdates };
+    prefsRef.current = mergedPrefs;
+    setUserProfile(prev => (prev ? { ...prev, preferences: mergedPrefs } : prev));
+    await updateUserDetails(currentUser, { preferences: prefsRef.current });
+    return prefsRef.current;
   };
 
   const updateUserEmail = async (newEmail, currentPassword) => {

@@ -40,9 +40,12 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
   useEffect(() => {
     if (!isOpen) return;
     const originalOverflow = document.body.style.overflow;
+    const originalHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = originalOverflow;
+      document.documentElement.style.overflow = originalHtmlOverflow;
     };
   }, [isOpen]);
 
@@ -327,11 +330,11 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                     style={{ fontSize: '0.72rem', height: '32px', marginBottom: '6px', color: 'var(--text-muted)' }}
                     value={generatedLink}
                   />
-                  <div style={{ display: 'flex', gap: '6px' }}>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     <button
                       type="button"
                       className="filter-chip active"
-                      style={{ flex: 1, textAlign: 'center', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', fontSize: '0.74rem' }}
+                      style={{ flex: '1 1 120px', textAlign: 'center', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px', padding: '6px 8px', fontSize: '0.74rem', minHeight: '36px' }}
                       onClick={handleCopy}
                     >
                       {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -340,7 +343,7 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                     <button
                       type="button"
                       className="filter-chip"
-                      style={{ flex: 1, textAlign: 'center', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px', borderColor: '#25D366', color: '#25D366', padding: '6px 8px', fontSize: '0.74rem' }}
+                      style={{ flex: '1 1 120px', textAlign: 'center', justifyContent: 'center', display: 'flex', alignItems: 'center', gap: '4px', borderColor: '#25D366', color: '#25D366', padding: '6px 8px', fontSize: '0.74rem', minHeight: '36px' }}
                       onClick={handleShareWhatsApp}
                     >
                       <Share2 size={13} />
@@ -357,7 +360,7 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                     {t('activeInvitationsTitle')} ({invitations.length})
                   </span>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px', maxHeight: '160px', overflowY: 'auto' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
                     {invitations.map((inv) => (
                       <div
                         key={inv.id}
@@ -392,9 +395,10 @@ export default function InviteMemberModal({ isOpen, onClose, showToast }) {
                             type="button"
                             onClick={() => handleRevoke(inv.id)}
                             className="compact-action-btn delete"
-                            style={{ width: '24px', height: '24px', flexShrink: 0 }}
+                            style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', flexShrink: 0 }}
+                            aria-label={t('revokeBtn') || 'Revoke'}
                           >
-                            <Trash2 size={13} />
+                            <Trash2 size={14} />
                           </button>
                         )}
                       </div>

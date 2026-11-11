@@ -17,6 +17,7 @@ import {
   Layers
 } from 'lucide-react';
 import { useWorkspace } from '../context/WorkspaceContext';
+import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { uploadMultipleDiaryPhotos } from '../services/cloudinaryService';
 import { detectLanguage } from '../services/translationService';
@@ -27,6 +28,7 @@ import { getCategoryDisplayName } from '../utils/categoryTranslations';
 
 export default function AddEntryView({ onDone, showToast }) {
   const { categories, addEntry, currentWorkspace, workspaces } = useWorkspace();
+  const { currentUser } = useAuth();
   const { t, language } = useLanguage();
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState(currentWorkspace?.id || workspaces?.[0]?.id);
@@ -182,7 +184,7 @@ export default function AddEntryView({ onDone, showToast }) {
               onChange={(e) => setSelectedWorkspaceId(e.target.value)}
             >
               {(workspaces || []).map((ws) => {
-                const isShared = ws.ownerUid && ws.ownerUid !== currentWorkspace?.ownerUid && ws.type !== 'personal';
+                const isShared = ws.ownerUid && ws.ownerUid !== currentUser?.uid && ws.type !== 'personal';
                 const typeLabel = ws.type === 'personal' ? t('modePersonal') : (ws.type === 'family' ? t('modeFamily') : t('modeBusiness'));
                 const label = isShared
                   ? `${ws.name} (${typeLabel} • ${t('sharedDiaryBadge')})`

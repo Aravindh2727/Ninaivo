@@ -337,8 +337,9 @@ export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdH
       // Commit all writes in a single atomic database operation
       await batch.commit();
 
-      // Update workspace subcollection invitation if accessible (outside batch to avoid rule restrictions on subcollection)
-      if (invData.id) {
+      // Sync workspace subcollection invitation only if caller created it (owner/admin)
+      // Invitee status updates are reconciled cleanly by workspace owner/admin in getWorkspaceInvitations()
+      if (invData.id && invData.createdByUid === inviteeUser.uid) {
         try {
           const subInvRef = doc(db, 'workspaces', workspaceId, 'invitations', invData.id);
           await updateDoc(subInvRef, {
@@ -347,8 +348,19 @@ export async function acceptWorkspaceInvitation(token, inviteeUser, workspaceIdH
             acceptedAt: serverTimestamp()
           });
         } catch (e) {
-          // Non-admin may not have manageWorkspace permission for subcollection update; safe to ignore
+          // Safe to ignore
         }
+      }
+
+      // Persist joined workspace ID onto invitee's own user document for reliable cross-device discovery
+      try {
+        const userRef = doc(db, 'users', inviteeUser.uid);
+        await setDoc(userRef, {
+          joinedWorkspaceIds: arrayUnion(workspaceId),
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+      } catch (e) {
+        // Non-blocking fallback metadata
       }
     } catch (err) {
       console.error('Firestore accept invitation batch error:', err);
@@ -515,6 +527,33 @@ export async function getWorkspaceInvitations(workspaceId) {
           id: docSnap.id,
           ...docSnap.data()
         }));
+
+        // Reconcile pending invitations against authoritative root /invitations/{tokenHash}
+        invitations = await Promise.all(invitations.map(async (inv) => {
+          if (inv.status === 'pending' && inv.tokenHash) {
+            try {
+              const rootSnap = await getDoc(doc(db, 'invitations', inv.tokenHash));
+              if (rootSnap.exists()) {
+                const rootData = rootSnap.data();
+                if (rootData.status && rootData.status !== inv.status) {
+                  updateDoc(doc(db, 'workspaces', workspaceId, 'invitations', inv.id), {
+                    status: rootData.status,
+                    ...(rootData.acceptedByUid ? { acceptedByUid: rootData.acceptedByUid } : {})
+                  }).catch(() => {});
+                  return {
+                    ...inv,
+                    status: rootData.status,
+                    acceptedByUid: rootData.acceptedByUid || inv.acceptedByUid
+                  };
+                }
+              }
+            } catch {
+              // Ignore per-invite reconciliation check error
+            }
+          }
+          return inv;
+        }));
+
         localStorage.setItem(localKey, JSON.stringify(invitations));
       }
     } catch (err) {

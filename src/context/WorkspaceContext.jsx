@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   collection,
   doc,
@@ -78,6 +78,8 @@ export function WorkspaceProvider({ children }) {
   const [activityLogs, setActivityLogs] = useState([]);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const preferredWsIdRef = useRef(userProfile?.preferences?.lastActiveWorkspaceId || null);
+  preferredWsIdRef.current = userProfile?.preferences?.lastActiveWorkspaceId || preferredWsIdRef.current;
 
   // Incoming invite link token detected from URL
   const [incomingInviteToken, setIncomingInviteToken] = useState(null);
@@ -169,12 +171,17 @@ export function WorkspaceProvider({ children }) {
 
         setWorkspaces(list);
 
-        // Retrieve last active workspace preference (cloud profile preference first, then local cache)
-        const preferredWsId = userProfile?.preferences?.lastActiveWorkspaceId;
+        // Retrieve last active workspace preference (preserve already active workspace if still valid)
+        const preferredWsId = preferredWsIdRef.current;
         const cachedWsId = localStorage.getItem(`pdt_last_active_ws_${currentUser.uid}`);
         const targetId = preferredWsId || cachedWsId;
-        const found = list.find(w => w.id === targetId) || list[0];
-        setCurrentWorkspaceState(found || null);
+        setCurrentWorkspaceState((prevWs) => {
+          if (prevWs?.id) {
+            const refreshedPrev = list.find(w => w.id === prevWs.id);
+            if (refreshedPrev) return refreshedPrev;
+          }
+          return list.find(w => w.id === targetId) || list[0] || null;
+        });
       } catch (err) {
         if (err?.code !== 'permission-denied') {
           console.error('Error loading workspaces:', err);
@@ -186,7 +193,7 @@ export function WorkspaceProvider({ children }) {
 
     loadWorkspaces();
     return () => { isMounted = false; };
-  }, [currentUser?.uid, currentUser?.displayName, authLoading, userProfile?.preferences?.lastActiveWorkspaceId]);
+  }, [currentUser?.uid, currentUser?.displayName, authLoading]);
 
   // Load workspace-scoped data (entries, categories, members, invites, requests, activity)
   useEffect(() => {
@@ -211,6 +218,10 @@ export function WorkspaceProvider({ children }) {
 
     async function loadWorkspaceData() {
       try {
+        const isWsManager =
+          currentWorkspace.ownerUid === currentUser.uid ||
+          ['owner', 'admin'].includes(currentWorkspace.memberRoles?.[currentUser.uid]);
+
         const [
           wsEntries,
           wsCategories,
@@ -226,8 +237,8 @@ export function WorkspaceProvider({ children }) {
             email: currentUser?.email,
             photoURL: currentUser?.photoURL
           }),
-          currentWorkspace.type !== 'personal' ? getWorkspaceInvitations(currentWorkspace.id) : [],
-          currentWorkspace.type !== 'personal' ? getWorkspaceJoinRequests(currentWorkspace.id) : [],
+          currentWorkspace.type !== 'personal' && isWsManager ? getWorkspaceInvitations(currentWorkspace.id) : [],
+          currentWorkspace.type !== 'personal' && isWsManager ? getWorkspaceJoinRequests(currentWorkspace.id) : [],
           getWorkspaceActivityLogs(currentWorkspace.id)
         ]);
 
