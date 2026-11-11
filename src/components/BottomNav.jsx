@@ -40,10 +40,15 @@ export default function BottomNav({ activeTab, onSelectTab }) {
                 cursor: 'pointer',
                 padding: 0,
                 position: 'relative',
-                transform: 'translateY(-14px)',
+                transform: 'translateY(-12px)',
                 width: '100%',
                 minWidth: 0,
-                boxSizing: 'border-box'
+                minHeight: '48px',
+                height: '100%',
+                boxSizing: 'border-box',
+                touchAction: 'manipulation',
+                WebkitTapHighlightColor: 'transparent',
+                userSelect: 'none'
               }}
             >
               <div 
@@ -78,6 +83,8 @@ export default function BottomNav({ activeTab, onSelectTab }) {
             style={{
               minWidth: 0,
               width: '100%',
+              minHeight: '48px',
+              height: '100%',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -86,9 +93,12 @@ export default function BottomNav({ activeTab, onSelectTab }) {
               background: 'transparent',
               border: 'none',
               cursor: 'pointer',
-              padding: '4px 1px',
+              padding: '4px 2px',
               position: 'relative',
               boxSizing: 'border-box',
+              touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'transparent',
+              userSelect: 'none',
               color: isActive ? 'var(--primary)' : 'var(--text-muted)'
             }}
           >

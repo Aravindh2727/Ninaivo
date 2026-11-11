@@ -160,7 +160,7 @@ async function runTestSuite() {
   assert(rules.includes('isValidInviteJoin(resource.data, request.resource.data)'), 'Workspace update rule enforces cryptographic invitation verification');
   assert(rules.includes('request.resource.data.members.size() == resource.data.members.size() + 1'), 'Workspace update rule allows joining member to append themselves');
   assert(rules.includes('(request.auth.uid in request.resource.data.members)'), 'Workspace update rule requires joined UID to match authenticated user');
-  assert(rules.includes('invBefore.role in [\'editor\', \'viewer\']'), 'Workspace update rule limits invited role strictly to editor/viewer');
+  assert(rules.includes("invBefore.get('role', '') in ['editor', 'viewer']") || rules.includes("invBefore.role in ['editor', 'viewer']"), 'Workspace update rule limits invited role strictly to editor/viewer');
   assert(rules.includes('allow read: if isMember(getWorkspace());'), 'Diary entries subcollection allows read for active workspace members');
   assert(rules.includes('allow create: if canCreateEntries(getWorkspace())'), 'Diary entries subcollection allows create for editors/admins');
 

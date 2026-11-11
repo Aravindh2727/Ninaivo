@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users,
   UserPlus,
@@ -68,6 +69,16 @@ export default function MembersView({ onOpenWorkspaceSwitcher, showToast }) {
   const [newGroupType, setNewGroupType] = useState('family');
   const [newGroupDesc, setNewGroupDesc] = useState('');
   const [creatingGroup, setCreatingGroup] = useState(false);
+
+  // Body scroll lock while CreateGroupModal is open
+  useEffect(() => {
+    if (!showCreateGroupModal) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [showCreateGroupModal]);
 
   // Presence stats for active workspace
   const presenceStats = calculateGroupPresence
@@ -377,12 +388,42 @@ export default function MembersView({ onOpenWorkspaceSwitcher, showToast }) {
         )}
 
         {/* Create Group Modal */}
-        {showCreateGroupModal && (
-          <div className="modal-overlay" onClick={() => setShowCreateGroupModal(false)} style={{ padding: '12px' }}>
+        {showCreateGroupModal && (typeof document !== 'undefined' ? createPortal(
+          <div
+            className="modal-overlay"
+            onClick={() => setShowCreateGroupModal(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 1100,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '12px',
+              background: 'rgba(0, 0, 0, 0.65)',
+              backdropFilter: 'blur(8px)',
+              WebkitBackdropFilter: 'blur(8px)'
+            }}
+          >
             <div
               className="modal-dialog compact-modal-dialog"
               onClick={(e) => e.stopPropagation()}
-              style={{ width: '100%', maxWidth: '380px', padding: '14px 16px', boxSizing: 'border-box' }}
+              style={{
+                width: '100%',
+                maxWidth: '400px',
+                maxHeight: 'min(88vh, 88dvh, calc(100dvh - 24px))',
+                display: 'flex',
+                flexDirection: 'column',
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
+                WebkitOverflowScrolling: 'touch',
+                padding: '14px 16px',
+                borderRadius: '16px',
+                boxShadow: '0 20px 45px rgba(0, 0, 0, 0.4)',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border-color)',
+                boxSizing: 'border-box'
+              }}
             >
               <div className="modal-header compact-modal-header" style={{ justifyContent: 'space-between', marginBottom: '8px' }}>
                 <h3 className="modal-title compact-modal-title" style={{ fontSize: '0.96rem' }}>
@@ -456,8 +497,9 @@ export default function MembersView({ onOpenWorkspaceSwitcher, showToast }) {
                 </div>
               </form>
             </div>
-          </div>
-        )}
+          </div>,
+          document.body
+        ) : null)}
       </div>
     );
   }
@@ -572,32 +614,54 @@ export default function MembersView({ onOpenWorkspaceSwitcher, showToast }) {
 
         {/* Sub-Tabs: Members vs Activity Audit Log */}
         <div style={{
-          display: 'flex',
-          gap: '6px',
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '8px',
           borderTop: '1px solid var(--border-color)',
           paddingTop: '8px',
-          overflowX: 'auto',
-          whiteSpace: 'nowrap',
-          scrollbarWidth: 'none',
-          WebkitOverflowScrolling: 'touch'
+          marginTop: '6px'
         }}>
           <button
             type="button"
             className={`filter-chip ${activeSubTab === 'members' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('members')}
-            style={{ fontSize: '0.72rem', padding: '4px 10px', flexShrink: 0, whiteSpace: 'nowrap' }}
+            style={{
+              width: '100%',
+              fontSize: '0.74rem',
+              padding: '6px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              minWidth: 0,
+              boxSizing: 'border-box'
+            }}
           >
-            <Users size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-            {t('activeMembersTitle')} ({presenceStats.totalMembers})
+            <Users size={13} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {t('activeMembersTitle')} ({presenceStats.totalMembers})
+            </span>
           </button>
           <button
             type="button"
             className={`filter-chip ${activeSubTab === 'audit' ? 'active' : ''}`}
             onClick={() => setActiveSubTab('audit')}
-            style={{ fontSize: '0.72rem', padding: '4px 10px', flexShrink: 0, whiteSpace: 'nowrap' }}
+            style={{
+              width: '100%',
+              fontSize: '0.74rem',
+              padding: '6px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              minWidth: 0,
+              boxSizing: 'border-box'
+            }}
           >
-            <History size={12} style={{ marginRight: '4px', verticalAlign: 'middle' }} />
-            {t('activityAuditTitle')}
+            <History size={13} style={{ flexShrink: 0 }} />
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {t('activityAuditTitle')}
+            </span>
           </button>
         </div>
       </div>

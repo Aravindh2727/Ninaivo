@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Users,
   ShieldCheck,
@@ -25,6 +26,15 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
   const { t } = useLanguage();
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  useEffect(() => {
+    if (!isOpen || !incomingInviteData) return;
+    const originalOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = originalOverflow;
+    };
+  }, [isOpen, incomingInviteData]);
 
   if (!isOpen || !incomingInviteData) return null;
 
@@ -59,11 +69,41 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
     return <Heart size={22} style={{ color: 'var(--accent-rose)' }} />;
   };
 
-  return (
-    <div className="modal-backdrop" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="modal-sheet" style={{ maxWidth: '440px', padding: '24px' }} onClick={(e) => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+  const modalContent = (
+    <div
+      className="modal-backdrop"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '12px',
+        background: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)'
+      }}
+    >
+      <div
+        className="modal-sheet"
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          maxHeight: 'min(90vh, 90dvh, calc(100dvh - 24px))',
+          overflowY: 'auto',
+          overscrollBehavior: 'contain',
+          WebkitOverflowScrolling: 'touch',
+          padding: '20px',
+          boxSizing: 'border-box'
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0, flex: 1 }}>
             <div style={{
               width: '44px',
               height: '44px',
@@ -72,15 +112,16 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              border: '1px solid var(--border-color)'
+              border: '1px solid var(--border-color)',
+              flexShrink: 0
             }}>
               {getIcon()}
             </div>
-            <div>
+            <div style={{ minWidth: 0 }}>
               <span className="card-subtitle" style={{ fontSize: '0.72rem', textTransform: 'uppercase' }}>
                 {t('joinRequestBannerTitle')}
               </span>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '2px 0 0 0', color: 'var(--text-main)' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '2px 0 0 0', color: 'var(--text-main)', wordBreak: 'break-word' }}>
                 {incomingInviteData.workspaceName || 'Diary Workspace'}
               </h3>
             </div>
@@ -88,8 +129,9 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
           <button
             type="button"
             className="filter-chip"
-            style={{ padding: '4px', borderRadius: '50%' }}
+            style={{ padding: '6px', borderRadius: '50%', flexShrink: 0 }}
             onClick={handleDecline}
+            aria-label={t('close') || 'Close'}
           >
             <X size={16} />
           </button>
@@ -124,13 +166,13 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
           padding: '14px',
           marginBottom: '20px'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('workspaceMode')}</span>
             <span style={{ fontSize: '0.78rem', fontWeight: 600, textTransform: 'capitalize', color: 'var(--text-main)' }}>
               {incomingInviteData.workspaceType}
             </span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', gap: '8px' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('invitedAs')}</span>
             <span className="tag-pill" style={{
               fontSize: '0.72rem',
@@ -144,7 +186,7 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
               {incomingInviteData.role || 'editor'}
             </span>
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>{t('status')}</span>
             <span style={{ fontSize: '0.78rem', color: 'var(--accent-emerald)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
               <Clock size={12} /> {t('validInvitation')}
@@ -152,11 +194,11 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <button
             type="button"
             className="filter-chip"
-            style={{ flex: 1, padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+            style={{ flex: '1 1 110px', minHeight: '42px', padding: '10px', textAlign: 'center', justifyContent: 'center', display: 'flex', alignItems: 'center' }}
             onClick={handleDecline}
             disabled={submitting}
           >
@@ -165,7 +207,7 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
           <button
             type="button"
             className="btn-primary"
-            style={{ flex: 2, padding: '10px', textAlign: 'center', justifyContent: 'center' }}
+            style={{ flex: '2 1 180px', minHeight: '42px', padding: '10px', textAlign: 'center', justifyContent: 'center', display: 'flex', alignItems: 'center' }}
             onClick={handleSubmitRequest}
             disabled={submitting}
           >
@@ -184,5 +226,9 @@ export default function JoinRequestModal({ isOpen, onClose, showToast }) {
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined'
+    ? createPortal(modalContent, document.body)
+    : modalContent;
 }
 

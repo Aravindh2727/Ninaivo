@@ -2001,6 +2001,113 @@ async function runEmulatorTestSuite() {
       logFail('Scenario 46 failed', e);
     }
 
+    // Scenario 47: Shareable Invitation Link acceptance (invitedEmail: null / omitted, expiresAt: null)
+    try {
+      const wsShareId = 'ws_shareable_test_47';
+      const shareOwnerUid = 'share_owner_47';
+      const shareJoinerNullEmailUid = 'share_joiner_null_47';
+      const shareJoinerOmittedUid = 'share_joiner_omit_47';
+      const shareHashNullEmail = 'c'.repeat(64);
+      const shareHashOmitted = 'd'.repeat(64);
+
+      await testEnv.withSecurityRulesDisabled(async (context) => {
+        const adminDb = context.firestore();
+        await setDoc(doc(adminDb, 'workspaces', wsShareId), {
+          id: wsShareId,
+          name: 'Family Shareable Invite Workspace',
+          type: 'family',
+          ownerUid: shareOwnerUid,
+          members: [shareOwnerUid],
+          memberRoles: { [shareOwnerUid]: 'owner' },
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+
+        await setDoc(doc(adminDb, 'invitations', shareHashNullEmail), {
+          id: 'inv_share_null',
+          workspaceId: wsShareId,
+          workspaceName: 'Family Shareable Invite Workspace',
+          workspaceType: 'family',
+          tokenHash: shareHashNullEmail,
+          rawToken: null,
+          invitedEmail: null,
+          role: 'editor',
+          relationship: 'family',
+          expiresAt: null,
+          status: 'pending',
+          createdByUid: shareOwnerUid,
+          createdAt: new Date().toISOString()
+        });
+
+        await setDoc(doc(adminDb, 'invitations', shareHashOmitted), {
+          id: 'inv_share_omit',
+          workspaceId: wsShareId,
+          workspaceName: 'Family Shareable Invite Workspace',
+          workspaceType: 'family',
+          tokenHash: shareHashOmitted,
+          role: 'viewer',
+          status: 'pending',
+          createdByUid: shareOwnerUid,
+          createdAt: new Date().toISOString()
+        });
+      });
+
+      const joinerNullDb = testEnv.authenticatedContext(shareJoinerNullEmailUid, { email: 'relative1@example.com' }).firestore();
+      const batchNull = writeBatch(joinerNullDb);
+      batchNull.update(doc(joinerNullDb, 'workspaces', wsShareId), {
+        members: arrayUnion(shareJoinerNullEmailUid),
+        [`memberRoles.${shareJoinerNullEmailUid}`]: 'editor',
+        lastInviteTokenHash: shareHashNullEmail,
+        updatedAt: serverTimestamp()
+      });
+      batchNull.set(doc(joinerNullDb, 'workspaces', wsShareId, 'members', shareJoinerNullEmailUid), {
+        id: shareJoinerNullEmailUid,
+        uid: shareJoinerNullEmailUid,
+        displayName: 'Relative 1',
+        email: 'relative1@example.com',
+        role: 'editor',
+        relationship: 'family',
+        inviteTokenHash: shareHashNullEmail,
+        status: 'active',
+        joinedAt: new Date().toISOString()
+      });
+      batchNull.update(doc(joinerNullDb, 'invitations', shareHashNullEmail), {
+        status: 'accepted',
+        acceptedByUid: shareJoinerNullEmailUid,
+        acceptedAt: serverTimestamp()
+      });
+      await assertSucceeds(batchNull.commit());
+
+      const joinerOmitDb = testEnv.authenticatedContext(shareJoinerOmittedUid, { email: 'relative2@example.com' }).firestore();
+      const batchOmit = writeBatch(joinerOmitDb);
+      batchOmit.update(doc(joinerOmitDb, 'workspaces', wsShareId), {
+        members: arrayUnion(shareJoinerOmittedUid),
+        [`memberRoles.${shareJoinerOmittedUid}`]: 'viewer',
+        lastInviteTokenHash: shareHashOmitted,
+        updatedAt: serverTimestamp()
+      });
+      batchOmit.set(doc(joinerOmitDb, 'workspaces', wsShareId, 'members', shareJoinerOmittedUid), {
+        id: shareJoinerOmittedUid,
+        uid: shareJoinerOmittedUid,
+        displayName: 'Relative 2',
+        email: 'relative2@example.com',
+        role: 'viewer',
+        inviteTokenHash: shareHashOmitted,
+        status: 'active',
+        joinedAt: new Date().toISOString()
+      });
+      batchOmit.update(doc(joinerOmitDb, 'invitations', shareHashOmitted), {
+        status: 'accepted',
+        acceptedByUid: shareJoinerOmittedUid,
+        acceptedAt: serverTimestamp()
+      });
+      await assertSucceeds(batchOmit.commit());
+
+      logPass('Scenario 47: Shareable Invitation Link (invitedEmail null/omitted & expiresAt null) atomic acceptance SUCCEEDS');
+    } catch (e) {
+      logFail('Scenario 47 failed', e);
+    }
+
   } finally {
     console.log('\nCleaning up emulator environment...');
     await testEnv.cleanup();

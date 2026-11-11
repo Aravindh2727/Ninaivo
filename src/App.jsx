@@ -136,11 +136,16 @@ function AppContent() {
     }, 3200);
   };
 
-  // Sync theme attribute to document root
+  // Sync theme attribute to document root and dynamic theme-color meta
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('ninaivo_theme', theme);
     localStorage.setItem('pdt_theme', theme);
+    const themeColor = theme === 'dark' ? '#102B23' : '#F8FAF3';
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', themeColor);
+    }
   }, [theme]);
 
   const toggleTheme = () => {

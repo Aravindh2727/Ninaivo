@@ -35,10 +35,10 @@ service cloud.firestore {
     // Helper to verify that the invitation creator remains currently authorized in the workspace
     function isCurrentAuthorizedCreator(ws, creatorUid) {
       return creatorUid is string && (
-        (ws.ownerUid == creatorUid) ||
-        (ws.members != null && (creatorUid in ws.members) &&
+        (ws.get('ownerUid', '') == creatorUid) ||
+        (ws.get('members', null) != null && (creatorUid in ws.members) &&
          ws.get('memberRoles', null) != null &&
-         ws.memberRoles[creatorUid] == 'admin')
+         ws.memberRoles.get(creatorUid, '') == 'admin')
       );
     }
 
@@ -62,13 +62,13 @@ service cloud.firestore {
                memAfter != null &&
                wsAfter.type != 'personal' &&
                isCurrentAuthorizedCreator(wsAfter, resource.data.createdByUid) &&
-               (request.auth.uid in wsAfter.members) &&
+               (wsAfter.get('members', null) != null && (request.auth.uid in wsAfter.members)) &&
                wsAfter.get('memberRoles', null) != null &&
-               wsAfter.memberRoles[request.auth.uid] == resource.data.role &&
+               wsAfter.memberRoles.get(request.auth.uid, '') == resource.data.role &&
                wsAfter.get('lastInviteTokenHash', '') == tokenHash &&
-               memAfter.uid == request.auth.uid &&
-               memAfter.role == resource.data.role &&
-               memAfter.inviteTokenHash == tokenHash;
+               memAfter.get('uid', '') == request.auth.uid &&
+               memAfter.get('role', '') == resource.data.role &&
+               memAfter.get('inviteTokenHash', '') == tokenHash;
       }
 
       allow update: if isAuthenticated() && (
@@ -179,22 +179,22 @@ service cloud.firestore {
       }
 
       function isValidInviteJoin(ws, reqData) {
-        let tokenHash = reqData.lastInviteTokenHash;
+        let tokenHash = reqData.get('lastInviteTokenHash', '');
         let invBefore = get(/databases/$(database)/documents/invitations/$(tokenHash)).data;
         let invAfter = getAfter(/databases/$(database)/documents/invitations/$(tokenHash)).data;
         return tokenHash is string &&
                invBefore != null &&
                invAfter != null &&
-               invBefore.workspaceId == workspaceId &&
-               isCurrentAuthorizedCreator(ws, invBefore.createdByUid) &&
-               invBefore.status == 'pending' &&
-               invAfter.status == 'accepted' &&
-               invAfter.acceptedByUid == request.auth.uid &&
-               (invBefore.expiresAt == null || request.time < invBefore.expiresAt) &&
-               (invBefore.invitedEmail == null || invBefore.invitedEmail == '' ||
+               invBefore.get('workspaceId', '') == workspaceId &&
+               isCurrentAuthorizedCreator(ws, invBefore.get('createdByUid', '')) &&
+               invBefore.get('status', '') == 'pending' &&
+               invAfter.get('status', '') == 'accepted' &&
+               invAfter.get('acceptedByUid', '') == request.auth.uid &&
+               (invBefore.get('expiresAt', null) == null || request.time < invBefore.expiresAt) &&
+               (invBefore.get('invitedEmail', null) == null || invBefore.invitedEmail == '' ||
                 (request.auth.token.email != null && request.auth.token.email.lower() == invBefore.invitedEmail.lower())) &&
-               (invBefore.role in ['editor', 'viewer']) &&
-               (reqData.memberRoles[request.auth.uid] == invBefore.role);
+               (invBefore.get('role', '') in ['editor', 'viewer']) &&
+               (reqData.get('memberRoles', null) != null && reqData.memberRoles.get(request.auth.uid, '') == invBefore.get('role', ''));
       }
 
       // Workspace document rules
@@ -264,12 +264,13 @@ service cloud.firestore {
           (!isPersonal(getWorkspace()) &&
            isAuthenticated() &&
            request.auth.uid == memberUid &&
-           request.resource.data.inviteTokenHash is string &&
-           request.resource.data.role in ['editor', 'viewer'] &&
-           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.status == 'accepted' &&
-           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.acceptedByUid == request.auth.uid &&
-           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.role == request.resource.data.role &&
-           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.workspaceId == workspaceId
+           request.resource.data.get('inviteTokenHash', null) is string &&
+           request.resource.data.get('role', '') in ['editor', 'viewer'] &&
+           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data != null &&
+           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.get('status', '') == 'accepted' &&
+           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.get('acceptedByUid', '') == request.auth.uid &&
+           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.get('role', '') == request.resource.data.role &&
+           getAfter(/databases/$(database)/documents/invitations/$(request.resource.data.inviteTokenHash)).data.get('workspaceId', '') == workspaceId
           )
         );
         allow update: if (isOwner(getWorkspace()) && request.resource.data.role != 'owner') ||
